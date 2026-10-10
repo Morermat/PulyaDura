@@ -61,7 +61,8 @@ namespace PulyaDura
         void OnNoise(Vector3 pos, float radius, Team team)
         {
             if (team == Team.Enemy || cfg.behaviour == EnemyBehaviour.Dummy) return;
-            if (Prims.Flat(pos - transform.position).sqrMagnitude > radius * radius) return;
+            float heard = radius * cfg.hearing;
+            if (Prims.Flat(pos - transform.position).sqrMagnitude > heard * heard) return;
             Remember(pos);
         }
 
@@ -165,36 +166,74 @@ namespace PulyaDura
         }
 
         /// <summary>
-        /// Перебор углов: ищем выстрел, который после отскока проходит рядом с целью
-        /// и не возвращается в самого стрелка.
+        /// Поиск выстрела через отскок в два прохода: грубый перебор каждые 3°,
+        /// затем уточнение с шагом 0,5° вокруг трёх лучших направлений.
+        /// Выстрел должен пройти рядом с целью после отскока и не вернуться в самого стрелка.
         /// </summary>
         Vector3? FindBankShot(Vector3 origin, Vector3 target)
         {
             int bounces = Mathf.Min(tank.Turret.bounces, 2);
-            float best = float.MaxValue;
-            Vector3? bestDir = null;
-            Vector3 self = transform.position;
+            const int keep = 3;
+            var bestAngles = new float[keep];
+            var bestMiss = new float[keep];
+            for (int i = 0; i < keep; i++) bestMiss[i] = float.MaxValue;
 
-            for (int a = 0; a < 360; a += 4)
+            for (float a = 0f; a < 360f; a += 3f)
             {
-                Vector3 dir = Quaternion.Euler(0f, a, 0f) * Vector3.forward;
-                Ricochet.TracePath(origin, dir, 40f, bounces, tank.Turret.projectileRadius, Layers.WallMask, path);
-                float travelled = 0f;
-                for (int s = 0; s < path.Count - 1; s++)
+                float miss = Evaluate(origin, target, a, bounces, out _);
+                for (int i = 0; i < keep; i++)
                 {
-                    Vector3 p0 = path[s], p1 = path[s + 1];
-                    if (s >= 1 && Ricochet.DistanceToSegment(self, p0, p1, out _) < 1.1f) break;
-                    float d = Ricochet.DistanceToSegment(target, p0, p1, out float along);
-                    if (s >= 1 && d < 0.7f)
+                    if (miss >= bestMiss[i]) continue;
+                    for (int j = keep - 1; j > i; j--) { bestMiss[j] = bestMiss[j - 1]; bestAngles[j] = bestAngles[j - 1]; }
+                    bestMiss[i] = miss;
+                    bestAngles[i] = a;
+                    break;
+                }
+            }
+
+            float bestLength = float.MaxValue;
+            Vector3? bestDir = null;
+            for (int i = 0; i < keep; i++)
+            {
+                if (bestMiss[i] > 3f) continue;
+                for (float a = bestAngles[i] - 3f; a <= bestAngles[i] + 3f; a += 0.5f)
+                {
+                    float miss = Evaluate(origin, target, a, bounces, out float length);
+                    if (miss < 0.8f && length < bestLength)
                     {
-                        float total = travelled + along;
-                        if (total < best) { best = total; bestDir = dir; }
-                        break;
+                        bestLength = length;
+                        bestDir = Quaternion.Euler(0f, a, 0f) * Vector3.forward;
                     }
-                    travelled += Vector3.Distance(p0, p1);
                 }
             }
             return bestDir;
+        }
+
+        /// <summary>Насколько близко к цели проходит выстрел под углом a после первого отскока.</summary>
+        float Evaluate(Vector3 origin, Vector3 target, float a, int bounces, out float length)
+        {
+            Vector3 dir = Quaternion.Euler(0f, a, 0f) * Vector3.forward;
+            Ricochet.TracePath(origin, dir, 40f, bounces, tank.Turret.projectileRadius, Layers.WallMask, path);
+            Vector3 self = transform.position;
+            float travelled = 0f;
+            float bestMiss = float.MaxValue;
+            length = float.MaxValue;
+            for (int s = 0; s < path.Count - 1; s++)
+            {
+                Vector3 p0 = path[s], p1 = path[s + 1];
+                if (s >= 1)
+                {
+                    if (Ricochet.DistanceToSegment(self, p0, p1, out _) < 1.1f) break; // вернётся в стрелка
+                    float d = Ricochet.DistanceToSegment(target, p0, p1, out float along);
+                    if (d < bestMiss)
+                    {
+                        bestMiss = d;
+                        length = travelled + along;
+                    }
+                }
+                travelled += Vector3.Distance(p0, p1);
+            }
+            return bestMiss;
         }
     }
 }

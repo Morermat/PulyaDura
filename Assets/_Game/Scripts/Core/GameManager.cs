@@ -41,6 +41,7 @@ namespace PulyaDura
         public RunStats Stats { get; private set; } = new();
         public int HullIndex { get; private set; }
         public int TurretIndex { get; private set; }
+        public Transform GarageTank => garageTank != null ? garageTank.transform : null;
 
         List<RoomData> rooms;
         LevelBuilder level;
@@ -63,6 +64,10 @@ namespace PulyaDura
             rooms = RoomParser.Parse(config.rooms != null ? config.rooms.text : "");
             if (rooms.Count == 0) Debug.LogError("Нет комнат: проверьте GameConfig → rooms");
             Physics.IgnoreLayerCollision(Layers.Debris, Layers.Tank);
+#if UNITY_EDITOR
+            // В редакторе клавиатура доходит до игры, даже если фокус в другой вкладке
+            InputSystem.settings.editorInputBehaviorInPlayMode = InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView;
+#endif
 
             SetupEnvironment();
             gameObject.AddComponent<TimeController>();
@@ -164,7 +169,8 @@ namespace PulyaDura
             BuildGarage();
             garage.gameObject.SetActive(true);
             RebuildGarageTank();
-            CameraRig.I.LookAt(GaragePos + Vector3.up * 0.45f, 9f, 30f);
+            // Танк чуть правее центра: слева заголовок, справа карточка выбора
+            CameraRig.I.LookAt(GaragePos + new Vector3(-0.35f, 0.45f, 0f), 9.5f, 26f);
             ui.ShowGarage();
         }
 
@@ -215,6 +221,7 @@ namespace PulyaDura
         {
             ResetWorld();
             RoomIndex = index;
+            streak = 0;
             var room = rooms[index];
             level.Build(room);
 
@@ -229,6 +236,7 @@ namespace PulyaDura
             }
 
             CameraRig.I.Fit(level.Bounds);
+            CameraRig.I.Follow(Player, config.cameraZoom, config.cameraLean);
             EchoSystem.I.RevealAll(level.PlayerSpawn, 1f);
             Sfx.I.Play(SfxId.Mirror, level.PlayerSpawn, 0.5f, 0.6f);
             State = GameState.Playing;
@@ -429,8 +437,8 @@ namespace PulyaDura
             garage = new GameObject("Garage").transform;
             garage.position = GaragePos;
 
-            Prims.Part("Pedestal", PrimitiveType.Cylinder, garage, new Vector3(0f, -0.05f, 0f), new Vector3(4.2f, 0.05f, 4.2f), Mats.Lit(new Color(0.08f, 0.09f, 0.11f), 0.6f));
-            var ring = Prims.Part("Ring", PrimitiveType.Cylinder, garage, new Vector3(0f, -0.06f, 0f), new Vector3(4.4f, 0.04f, 4.4f), Mats.Unlit(config.echoColor * 0.7f));
+            Prims.Part("Pedestal", PrimitiveType.Cylinder, garage, new Vector3(0f, -0.05f, 0f), new Vector3(2.6f, 0.05f, 2.6f), Mats.Lit(new Color(0.08f, 0.09f, 0.11f), 0.6f));
+            var ring = Prims.Part("Ring", PrimitiveType.Cylinder, garage, new Vector3(0f, -0.06f, 0f), new Vector3(2.75f, 0.04f, 2.75f), Mats.Unlit(config.echoColor * 0.5f));
             ring.shadowCastingMode = ShadowCastingMode.Off;
             Prims.Part("Floor", PrimitiveType.Cube, garage, new Vector3(0f, -0.6f, 0f), new Vector3(40f, 1f, 40f), Mats.Lit(new Color(0.02f, 0.025f, 0.035f), 0.2f));
 

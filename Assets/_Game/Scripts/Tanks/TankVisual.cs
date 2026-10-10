@@ -29,6 +29,7 @@ namespace PulyaDura
         Color revealColor;
         float barrelBaseZ;
         float bubbleSize;
+        Color baseEmission;
 
         public void Build(HullConfig hull, TurretConfig turret, Team owner, bool withLight)
         {
@@ -39,6 +40,7 @@ namespace PulyaDura
             Color body = player ? cfg.playerBody : cfg.enemyBody;
             Color accent = player ? cfg.playerAccent : cfg.enemyAccent;
             revealColor = player ? cfg.playerAccent * 0.15f : cfg.enemyReveal;
+            baseEmission = player ? cfg.playerBody * 0.35f : Color.black;
 
             float w = hull.size.x, l = hull.size.y, hh = hull.height;
             HullRoot = new GameObject("Hull").transform;
@@ -93,6 +95,30 @@ namespace PulyaDura
 
             if (withLight)
             {
+                // Кольцо под игроком: свой танк всегда легко найти в темноте
+                var markerGo = new GameObject("Marker");
+                markerGo.transform.SetParent(transform, false);
+                markerGo.transform.localPosition = new Vector3(0f, 0.03f, 0f);
+                markerGo.transform.localRotation = Quaternion.Euler(90f, 0f, 0f);
+                var ring = markerGo.AddComponent<LineRenderer>();
+                ring.sharedMaterial = cfg.fxMaterial;
+                ring.useWorldSpace = false;
+                ring.loop = true;
+                ring.alignment = LineAlignment.TransformZ;
+                ring.widthMultiplier = 0.06f;
+                ring.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                const int segments = 48;
+                float radius = Mathf.Max(w, l) * 0.62f + 0.2f;
+                ring.positionCount = segments;
+                for (int i = 0; i < segments; i++)
+                {
+                    float a = i * Mathf.PI * 2f / segments;
+                    ring.SetPosition(i, new Vector3(Mathf.Cos(a) * radius, Mathf.Sin(a) * radius, 0f));
+                }
+                Color rc = EchoSystem.Ldr(cfg.playerAccent);
+                rc.a = 0.55f;
+                ring.startColor = ring.endColor = rc;
+
                 var lightGo = new GameObject("HeadLight");
                 lightGo.transform.SetParent(transform, false);
                 lightGo.transform.localPosition = new Vector3(0f, 2.2f, 0f);
@@ -148,7 +174,7 @@ namespace PulyaDura
             eye.transform.localScale = new Vector3(0.14f, 0.04f + tell * 0.05f, 0.06f);
 
             float k = reveal * reveal;
-            Color e = revealColor * k * 1.6f + Color.white * flash * 1.2f;
+            Color e = baseEmission + revealColor * k * 1.6f + Color.white * flash * 1.2f;
             mpb.SetColor(Mats.EmissionColor, e);
             foreach (var r in litParts) r.SetPropertyBlock(mpb);
 

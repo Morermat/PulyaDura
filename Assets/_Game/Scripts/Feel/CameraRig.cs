@@ -26,6 +26,10 @@ namespace PulyaDura
         float seed;
         Vector3 focusPoint;
         float focusAmount, focusDuration, focusStart = -100f;
+        float fullDistance;
+        Tank follow;
+        float zoom = 1f, lean;
+        Vector3 followVelocity;
 
         void Awake()
         {
@@ -41,13 +45,41 @@ namespace PulyaDura
         {
             fitBounds = bounds;
             fitMode = true;
+            follow = null;
             Recalculate();
             transform.SetPositionAndRotation(basePos, baseRot);
+        }
+
+        /// <summary>
+        /// Камера ближе к танку и едет за ним, но не показывает пустоту за стенами комнаты.
+        /// zoom 1 — вся комната в кадре.
+        /// </summary>
+        public void Follow(Tank target, float zoomFactor, float leanAmount)
+        {
+            follow = target;
+            zoom = Mathf.Clamp(zoomFactor, 0.3f, 1f);
+            lean = leanAmount;
+            basePos = FollowTarget();
+            followVelocity = Vector3.zero;
+            transform.SetPositionAndRotation(basePos, baseRot);
+        }
+
+        Vector3 FollowTarget()
+        {
+            Vector3 fwd = baseRot * Vector3.forward;
+            Vector3 focus = follow.transform.position + Prims.Flat(follow.Visual.TurretPivot.forward) * lean;
+            Vector3 c = fitBounds.center;
+            Vector3 e = fitBounds.extents * (1f - zoom);
+            focus.x = Mathf.Clamp(focus.x, c.x - e.x, c.x + e.x);
+            focus.z = Mathf.Clamp(focus.z, c.z - e.z, c.z + e.z);
+            focus.y = c.y;
+            return focus - fwd * (fullDistance * zoom);
         }
 
         public void LookAt(Vector3 target, float distance, float angle)
         {
             fitMode = false;
+            follow = null;
             baseRot = Quaternion.Euler(angle, 0f, 0f);
             basePos = target - baseRot * Vector3.forward * distance;
             transform.SetPositionAndRotation(basePos, baseRot);
@@ -94,6 +126,7 @@ namespace PulyaDura
                 if (fits) hi = mid; else lo = mid;
             }
             basePos = center - fwd * hi;
+            fullDistance = hi;
         }
 
         void LateUpdate()
@@ -101,6 +134,8 @@ namespace PulyaDura
             if (fitMode && !Mathf.Approximately(cam.aspect, lastAspect)) Recalculate();
 
             float dt = Time.unscaledDeltaTime;
+            if (follow != null && !follow.IsDead)
+                basePos = Vector3.SmoothDamp(basePos, FollowTarget(), ref followVelocity, 0.18f, Mathf.Infinity, dt);
             trauma = Mathf.Max(0f, trauma - dt * 1.8f);
             kick = Vector3.Lerp(kick, Vector3.zero, 1f - Mathf.Exp(-dt * 14f));
 

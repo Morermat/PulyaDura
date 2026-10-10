@@ -55,6 +55,8 @@ namespace PulyaDura.EditorTools
             PlayerSettings.productName = "Пуля — дура";
             PlayerSettings.companyName = "TPU Jam Team";
             PlayerSettings.runInBackground = true;
+            // Перезагрузка домена при Play: надёжнее, когда судьи запускают игру много раз
+            EditorSettings.enterPlayModeOptionsEnabled = false;
             PlayerSettings.fullScreenMode = FullScreenMode.Windowed;
             PlayerSettings.defaultScreenWidth = 1600;
             PlayerSettings.defaultScreenHeight = 900;
