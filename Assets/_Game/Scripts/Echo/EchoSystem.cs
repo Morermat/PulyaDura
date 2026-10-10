@@ -19,6 +19,7 @@ namespace PulyaDura
             public Vector3 normal;
             public Color color;
             public float strength;
+            public bool remember;
         }
 
         readonly List<Pending> pending = new();
@@ -66,7 +67,8 @@ namespace PulyaDura
                         point = hit.point,
                         normal = hit.normal,
                         color = color,
-                        strength = strength * Mathf.Lerp(1f, 0.55f, d / radius)
+                        strength = strength * Mathf.Lerp(1f, 0.55f, d / radius),
+                        remember = true
                     });
                 }
                 dists[i] = d;
@@ -87,6 +89,15 @@ namespace PulyaDura
 
             var wave = wavePool.Count > 0 ? wavePool.Pop() : CreateWave();
             wave.Play(origin, dists, radius, speed, color);
+        }
+
+        /// <summary>Кольцо без подсветки: показывает игроку, что он шумит.</summary>
+        public void NoiseRing(Vector3 origin, float radius, Color color)
+        {
+            var wave = wavePool.Count > 0 ? wavePool.Pop() : CreateWave();
+            var dists = new float[32];
+            for (int i = 0; i < dists.Length; i++) dists[i] = radius;
+            wave.Play(origin, dists, radius, radius * 2.5f, color);
         }
 
         /// <summary>Вспышка всей комнаты от точки (начало комнаты): показывает планировку на пару секунд.</summary>
@@ -121,7 +132,7 @@ namespace PulyaDura
 
                 if (p.collider.TryGetComponent<WallBlock>(out var wall))
                 {
-                    wall.Show(p.strength, p.color);
+                    wall.Show(p.strength, p.color, p.remember);
                     if (p.normal != Vector3.zero) Ping(p.point, p.normal, p.color);
                 }
                 else if (p.collider.TryGetComponent<Tank>(out var tank) && !tank.IsDead)

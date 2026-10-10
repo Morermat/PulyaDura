@@ -69,11 +69,14 @@ namespace PulyaDura
             active.Add(p);
         }
 
+        /// <summary>Каждый отскок делает пулю ярче: видно, что она «заряжена» и опасна.</summary>
         Color ColorOf(Projectile p)
         {
-            if (p.team == Team.Enemy) return cfg.bulletEnemy;
-            return p.bouncesDone > 0 ? cfg.bulletDanger : cfg.bulletPlayer;
+            Color c = p.team == Team.Enemy ? cfg.bulletEnemy : p.bouncesDone > 0 ? cfg.bulletDanger : cfg.bulletPlayer;
+            return c * (1f + cfg.glowGrowthPerBounce * p.bouncesDone);
         }
+
+        float EchoRadius(Projectile p) => p.cfg.echoRadius * (1f + cfg.echoGrowthPerBounce * p.bouncesDone);
 
         void Update()
         {
@@ -142,12 +145,12 @@ namespace PulyaDura
                         p.bouncesDone = 0;
                         Sfx.I.Play(SfxId.Mirror, p.pos, 0.6f, 1.4f);
                         Fx.I.Sparks(p.pos, normal, cfg.bulletPlayer, 10, 5f);
-                        EchoSystem.I.Emit(p.pos, p.cfg.echoRadius, cfg.echoColor);
+                        EchoSystem.I.Emit(p.pos, EchoRadius(p), cfg.echoColor);
                         continue;
                     }
                     tank.TakeDamage(new DamageInfo { amount = p.cfg.damage, source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone });
-                    EchoSystem.I.Emit(p.pos, p.cfg.echoRadius * 0.6f, EchoColor(p), 0.8f);
-                    Fx.I.Sparks(p.pos, -p.dir, ColorOf(p), 14, 6f);
+                    EchoSystem.I.Emit(p.pos, EchoRadius(p) * 0.6f, EchoColor(p), 0.8f);
+                    Fx.I.Sparks(p.pos, -p.dir, ColorOf(p), 14 + 8 * p.bouncesDone, 6f);
                     Die(p, false);
                     return;
                 }
@@ -155,14 +158,14 @@ namespace PulyaDura
                 if (hit.collider.TryGetComponent<Crate>(out var crate))
                 {
                     crate.TakeDamage(new DamageInfo { amount = p.cfg.damage, source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone });
-                    EchoSystem.I.Emit(p.pos, p.cfg.echoRadius * 0.6f, EchoColor(p), 0.7f);
+                    EchoSystem.I.Emit(p.pos, EchoRadius(p) * 0.6f, EchoColor(p), 0.7f);
                     Die(p, false);
                     return;
                 }
 
                 // Стена: отскок, эхо, звук «тинь» (каждый следующий выше — отскоки слышно на слух)
-                EchoSystem.I.Emit(p.pos, p.cfg.echoRadius, EchoColor(p));
-                Fx.I.Sparks(p.pos, normal, ColorOf(p), 8, 4f);
+                EchoSystem.I.Emit(p.pos, EchoRadius(p), EchoColor(p));
+                Fx.I.Sparks(p.pos, normal, ColorOf(p), 8 + 4 * p.bouncesDone, 4f);
                 GameEvents.RaiseNoise(p.pos, p.cfg.noiseRadius * 0.6f, p.team);
                 if (p.bouncesLeft <= 0)
                 {
@@ -174,6 +177,7 @@ namespace PulyaDura
                 p.bouncesDone++;
                 p.dir = Prims.Flat(Vector3.Reflect(p.dir, normal)).normalized;
                 p.pos += normal * 0.02f;
+                p.visual.SetRadius(p.cfg.projectileRadius * (1f + 0.2f * p.bouncesDone));
                 Sfx.I.Play(SfxId.Tink, p.pos, 0.7f, 1f + p.bouncesDone * 0.12f);
             }
         }
@@ -279,8 +283,7 @@ namespace PulyaDura
         {
             gameObject.SetActive(true);
             transform.position = pos;
-            ball.transform.localScale = Vector3.one * radius * 2f;
-            trail.widthMultiplier = radius * 1.8f;
+            SetRadius(radius);
             glow.enabled = withLight;
             current = Color.clear;
             SetColor(c);
@@ -288,6 +291,12 @@ namespace PulyaDura
         }
 
         public void ResetTrail() => trail.Clear();
+
+        public void SetRadius(float radius)
+        {
+            ball.transform.localScale = Vector3.one * radius * 2f;
+            trail.widthMultiplier = radius * 1.8f;
+        }
 
         public void Move(Vector3 pos, Color c)
         {

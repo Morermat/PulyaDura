@@ -24,6 +24,8 @@ namespace PulyaDura
         float trauma;
         Vector3 kick;
         float seed;
+        Vector3 focusPoint;
+        float focusAmount, focusDuration, focusStart = -100f;
 
         void Awake()
         {
@@ -49,6 +51,15 @@ namespace PulyaDura
             baseRot = Quaternion.Euler(angle, 0f, 0f);
             basePos = target - baseRot * Vector3.forward * distance;
             transform.SetPositionAndRotation(basePos, baseRot);
+        }
+
+        /// <summary>Короткий наезд камеры на точку (убийство после отскоков).</summary>
+        public void Focus(Vector3 point, float amount, float seconds)
+        {
+            focusPoint = point;
+            focusAmount = amount;
+            focusDuration = seconds;
+            focusStart = Time.unscaledTime;
         }
 
         public void Shake(float amount) => trauma = Mathf.Clamp01(trauma + amount);
@@ -98,7 +109,16 @@ namespace PulyaDura
             Vector3 shake = new Vector3(Mathf.PerlinNoise(seed, tt) - 0.5f, 0f, Mathf.PerlinNoise(seed + 7f, tt) - 0.5f) * 2f * s;
             float roll = (Mathf.PerlinNoise(seed + 13f, tt) - 0.5f) * 2f * s * 4f;
 
-            transform.SetPositionAndRotation(basePos + shake + kick, baseRot * Quaternion.Euler(0f, 0f, roll));
+            Vector3 pos = basePos;
+            float ft = (Time.unscaledTime - focusStart) / Mathf.Max(0.01f, focusDuration);
+            if (ft < 1f)
+            {
+                // быстро наехать, плавно вернуться
+                float k = ft < 0.2f ? Mathf.SmoothStep(0f, 1f, ft / 0.2f) : Mathf.SmoothStep(1f, 0f, (ft - 0.2f) / 0.8f);
+                Vector3 toward = focusPoint - basePos;
+                pos = basePos + toward * (focusAmount * k);
+            }
+            transform.SetPositionAndRotation(pos + shake + kick, baseRot * Quaternion.Euler(0f, 0f, roll));
         }
     }
 }

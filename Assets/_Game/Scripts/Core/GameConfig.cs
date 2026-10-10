@@ -98,6 +98,17 @@ namespace PulyaDura
         [Tooltip("За сколько секунд гаснет подсвеченная стена")] public float revealFade = 2.6f;
         [Tooltip("Радиус, в котором танк «нащупывает» стены")] public float touchRadius = 2.3f;
         public float startRevealSpeed = 26f;
+        [Tooltip("Яркость контура стены, которую уже видели (0 — память выключена)")] public float memoryGlow = 0.16f;
+
+        [Header("Шум двигателя")]
+        [Tooltip("Доля скорости, выше которой танк шумит")] public float loudSpeed = 0.7f;
+        [Tooltip("Скорость при тихом ходе (Shift)")] public float sneakSpeed = 0.5f;
+        public float engineNoiseRadius = 7f;
+        public float engineNoiseInterval = 0.5f;
+
+        [Header("Награда за отскоки")]
+        [Tooltip("На сколько растёт радиус эха с каждым отскоком")] public float echoGrowthPerBounce = 0.3f;
+        [Tooltip("Яркость пули растёт с каждым отскоком")] public float glowGrowthPerBounce = 0.45f;
 
         [Header("Свет")]
         public Color playerLightColor = new(1f, 0.9f, 0.78f);

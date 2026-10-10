@@ -15,6 +15,8 @@ namespace PulyaDura
         public Color baseColor = Color.black;
 
         public float Reveal { get; private set; }
+        /// <summary>Стену уже видели: она оставляет еле заметный контур («память эха»).</summary>
+        public bool Seen { get; private set; }
         Color color;
         float flash;
         MeshRenderer rend;
@@ -30,8 +32,14 @@ namespace PulyaDura
         void OnEnable() => All.Add(this);
         void OnDisable() => All.Remove(this);
 
-        public void Show(float amount, Color c)
+        /// <param name="remember">false для общей вспышки в начале комнаты: она не должна рисовать карту за игрока</param>
+        public void Show(float amount, Color c, bool remember = true)
         {
+            if (remember && amount >= 0.25f && !Seen)
+            {
+                Seen = true;
+                dirty = true;
+            }
             if (amount >= Reveal || amount > 0.6f)
             {
                 Reveal = Mathf.Clamp01(Mathf.Max(amount, Reveal));
@@ -59,7 +67,8 @@ namespace PulyaDura
             dirty = false;
 
             float k = Reveal * Reveal * 2.2f;
-            Color e = color * k + baseColor * baseGlow + Color.white * flash * 1.5f;
+            Color memory = Seen ? GameManager.Cfg.echoColor * GameManager.Cfg.memoryGlow : Color.black;
+            Color e = color * k + memory + baseColor * baseGlow + Color.white * flash * 1.5f;
             mpb.SetColor(Mats.EmissionColor, e);
             rend.SetPropertyBlock(mpb);
         }

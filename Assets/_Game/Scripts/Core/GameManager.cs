@@ -341,6 +341,12 @@ namespace PulyaDura
                 label = streak == 2 ? "ДУПЛЕТ!" : streak == 3 ? "ТРИПЛЕТ!" : streak > 3 ? $"СЕРИЯ x{streak}!"
                     : d.bounces >= 2 ? "ДВОЙНОЙ РИКОШЕТ!" : d.bounces == 1 ? "РИКОШЕТ!" : "ПОПАЛ!";
                 if (d.bounces > 0 || streak > 1) color = UiKit.Danger;
+                if (d.bounces >= 2)
+                {
+                    // Награда за главный навык: замедление и наезд камеры на попадание
+                    TimeController.I.SlowMo(0.2f, 0.7f);
+                    CameraRig.I.Focus(pos, 0.3f, 1.1f);
+                }
             }
             ui.Floating(pos + Vector3.up * 1.5f, label, color, 46);
 

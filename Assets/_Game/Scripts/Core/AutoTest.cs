@@ -87,6 +87,8 @@ namespace PulyaDura
                     yield return Wait(0.6f);
                 }
                 Shot("10_room2_echoes");
+                yield return Wait(3.2f);
+                Shot("10b_echo_memory");
             }
 
             gm.DebugLoadRoom(7);

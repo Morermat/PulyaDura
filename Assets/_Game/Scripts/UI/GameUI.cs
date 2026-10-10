@@ -17,7 +17,9 @@ namespace PulyaDura
         Text hullInfo, turretInfo, recordText;
         Image statArmor, statSpeed, statDamage, statRate, statBounces, statEcho;
         // HUD
-        Text roomNumber, roomTitle, hint, timer, kills, lives, hpLabel, weaponLabel, abilityLabel;
+        Text roomNumber, roomTitle, hint, timer, kills, lives, hpLabel, weaponLabel, abilityLabel, noiseLabel;
+        PlayerController playerController;
+        Tank cachedPlayer;
         Image hpBar, weaponBar, abilityBar, damageFlash;
         float hintTime;
         // баннер
@@ -76,7 +78,7 @@ namespace PulyaDura
             UiKit.Border(controls, new Color(1f, 1f, 1f, 0.06f));
             UiKit.Text("Head", controls.transform, tl, tl, new Vector2(28f, -22f), new Vector2(640f, 30f), "УПРАВЛЕНИЕ", 22, UiKit.Muted, TextAnchor.UpperLeft, FontStyle.Bold);
             UiKit.Text("Body", controls.transform, tl, tl, new Vector2(28f, -60f), new Vector2(650f, 110f),
-                "<b>WASD</b> — ехать   <b>Мышь</b> — целиться   <b>ЛКМ</b> — огонь\n<b>Пробел / ПКМ</b> — скилл корпуса   <b>R</b> — заново   <b>Esc</b> — пауза",
+                "<b>WASD</b> — ехать   <b>Shift</b> — тихий ход (враги не слышат)\n<b>Мышь</b> — целиться   <b>ЛКМ</b> — огонь   <b>Пробел / ПКМ</b> — скилл\n<b>R</b> — заново   <b>Esc</b> — пауза",
                 24, UiKit.TextColor, TextAnchor.UpperLeft);
 
             recordText = UiKit.Text("Record", garageRoot, Vector2.zero, Vector2.zero, new Vector2(84f, 60f), new Vector2(700f, 40f), "", 24, UiKit.Muted, TextAnchor.LowerLeft);
@@ -181,6 +183,7 @@ namespace PulyaDura
             kills = UiKit.Text("Kills", hudRoot, tr, tr, new Vector2(-40f, -80f), new Vector2(300f, 30f), "", 22, UiKit.Muted, TextAnchor.UpperRight);
 
             lives = UiKit.Text("Lives", hudRoot, bl, bl, new Vector2(40f, 196f), new Vector2(400f, 40f), "", 32, UiKit.Danger, TextAnchor.LowerLeft, FontStyle.Bold);
+            noiseLabel = UiKit.Text("Noise", hudRoot, bl, bl, new Vector2(200f, 196f), new Vector2(300f, 40f), "", 22, UiKit.Muted, TextAnchor.LowerLeft, FontStyle.Bold);
             hpLabel = UiKit.Text("HpLabel", hudRoot, bl, bl, new Vector2(40f, 160f), new Vector2(400f, 26f), "", 20, UiKit.Muted, TextAnchor.LowerLeft, FontStyle.Bold);
             hpBar = UiKit.Bar("Hp", hudRoot, bl, bl, new Vector2(40f, 136f), new Vector2(380f, 18f), UiKit.Accent);
             weaponLabel = UiKit.Text("WeaponLabel", hudRoot, bl, bl, new Vector2(40f, 98f), new Vector2(400f, 26f), "", 20, UiKit.Muted, TextAnchor.LowerLeft, FontStyle.Bold);
@@ -228,6 +231,11 @@ namespace PulyaDura
                 weaponBar.fillAmount = p.Weapon.Charging ? p.Weapon.Charge01 : p.Weapon.Reload01;
                 abilityLabel.text = $"{p.Ability.Title.ToUpper()}  <color=#9AA3B2>Пробел / ПКМ</color>" + (p.Ability.Ready ? "  <color=#FF8C33>ГОТОВ</color>" : "");
                 abilityBar.fillAmount = p.Ability.Cooldown01;
+                if (cachedPlayer != p) { cachedPlayer = p; playerController = p.GetComponent<PlayerController>(); }
+                bool loud = playerController != null && playerController.IsLoud;
+                bool sneak = playerController != null && playerController.IsSneaking;
+                noiseLabel.text = loud ? "ШУМНО" : sneak ? "ТИХИЙ ХОД" : "ТИХО";
+                noiseLabel.color = loud ? UiKit.Danger : sneak ? UiKit.Accent : UiKit.Muted;
             }
             else
             {

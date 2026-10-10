@@ -5,7 +5,7 @@ using UnityEngine.InputSystem;
 namespace PulyaDura
 {
     /// <summary>
-    /// Управление: WASD — ехать (относительно экрана), мышь — целиться, ЛКМ — огонь, Пробел/ПКМ — скилл.
+    /// Управление: WASD — ехать (относительно экрана), Shift — тихий ход, мышь — целиться, ЛКМ — огонь, Пробел/ПКМ — скилл.
     /// Геймпад: левый стик, правый стик, RT, LT/A.
     /// </summary>
     public class PlayerController : MonoBehaviour
@@ -16,10 +16,15 @@ namespace PulyaDura
         float dashTime;
         Vector3 dashVelocity;
         float touchTimer;
+        float noiseTimer;
+        float speedScale = 1f;
         AimLine aimLine;
         readonly Collider[] touchBuffer = new Collider[24];
 
         public Vector3 AimDirection => aimDir;
+        /// <summary>Танк едет на полном ходу: враги слышат двигатель.</summary>
+        public bool IsLoud { get; private set; }
+        public bool IsSneaking { get; private set; }
 
         public void Init(Tank owner)
         {
@@ -60,6 +65,19 @@ namespace PulyaDura
             if (pad != null) mv += pad.leftStick.ReadValue();
             move = Vector3.ClampMagnitude(new Vector3(mv.x, 0f, mv.y), 1f);
 
+            // Тихий ход: Shift (или неполный наклон стика) — медленно и бесшумно
+            var cfg = GameManager.Cfg;
+            IsSneaking = kb != null && (kb.leftShiftKey.isPressed || kb.rightShiftKey.isPressed);
+            speedScale = IsSneaking ? cfg.sneakSpeed : 1f;
+            IsLoud = !IsSneaking && move.magnitude > cfg.loudSpeed && dashTime <= 0f;
+            noiseTimer -= Time.deltaTime;
+            if (IsLoud && noiseTimer <= 0f)
+            {
+                noiseTimer = cfg.engineNoiseInterval;
+                GameEvents.RaiseNoise(transform.position, cfg.engineNoiseRadius, Team.Player);
+                EchoSystem.I.NoiseRing(transform.position, 1.6f, cfg.bulletDanger * 0.35f);
+            }
+
             Vector2 rs = pad != null ? pad.rightStick.ReadValue() : Vector2.zero;
             if (rs.sqrMagnitude > 0.15f)
             {
@@ -80,7 +98,7 @@ namespace PulyaDura
             bool fire = (mouse != null && mouse.leftButton.isPressed) || (pad != null && pad.rightTrigger.isPressed);
             if (fire) tank.Weapon.TryFire();
 
-            bool ability = (kb != null && (kb.spaceKey.wasPressedThisFrame || kb.leftShiftKey.wasPressedThisFrame))
+            bool ability = (kb != null && kb.spaceKey.wasPressedThisFrame)
                            || (mouse != null && mouse.rightButton.wasPressedThisFrame)
                            || (pad != null && (pad.leftTrigger.wasPressedThisFrame || pad.buttonSouth.wasPressedThisFrame));
             if (ability) tank.Ability.TryActivate(move, aimDir);
@@ -112,7 +130,7 @@ namespace PulyaDura
                 return;
             }
 
-            Vector3 target = move * tank.Hull.speed;
+            Vector3 target = move * tank.Hull.speed * speedScale;
             rb.linearVelocity = Vector3.MoveTowards(rb.linearVelocity, target, tank.Hull.speed * 8f * Time.fixedDeltaTime);
 
             if (move.sqrMagnitude > 0.01f)
@@ -170,7 +188,7 @@ namespace PulyaDura
             for (int i = 1; i < path.Count; i++)
             {
                 bool known = i - 1 < hits.Count && hits[i - 1] != null
-                             && hits[i - 1].TryGetComponent<WallBlock>(out var wall) && (wall.Reveal > 0.12f || wall.baseGlow > 0f);
+                             && hits[i - 1].TryGetComponent<WallBlock>(out var wall) && (wall.Seen || wall.Reveal > 0.12f || wall.baseGlow > 0f);
                 Vector3 a = path[i - 1], b = path[i];
                 if (known)
                 {
