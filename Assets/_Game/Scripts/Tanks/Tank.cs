@@ -71,7 +71,7 @@ namespace PulyaDura
             Body.isKinematic = team == Team.Enemy; // врагов двигает NavMeshAgent
 
             Visual = gameObject.AddComponent<TankVisual>();
-            Visual.Build(hull, turret, team, team == Team.Player);
+            Visual.Build(hull, turret, team, enemy, team == Team.Player);
             Visual.ShowHealthBar = team == Team.Enemy;
 
             Weapon = gameObject.AddComponent<TankWeapon>();

@@ -43,6 +43,7 @@ namespace PulyaDura.EditorTools
                 config = ScriptableObject.CreateInstance<GameConfig>();
                 AssetDatabase.CreateAsset(config, ConfigPath);
             }
+            if (System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-resetConfig") >= 0) ResetConfig(config);
             config.litMaterial = lit;
             config.unlitMaterial = unlit;
             config.fxMaterial = fx;
@@ -63,6 +64,32 @@ namespace PulyaDura.EditorTools
             PlayerSettings.resizableWindow = true;
             AssetDatabase.SaveAssets();
             Debug.Log("[ProjectBuilder] Готово: " + ScenePath);
+        }
+
+        /// <summary>
+        /// Возвращает в GameConfig значения по умолчанию из кода (GUID ассета сохраняется,
+        /// ссылки из сцены не ломаются). Нужен после добавления новых полей в конфиг.
+        /// </summary>
+        [MenuItem("Пуля — дура/Сбросить конфиг к значениям из кода")]
+        public static void ResetConfigMenu()
+        {
+            var config = AssetDatabase.LoadAssetAtPath<GameConfig>(ConfigPath);
+            if (config == null) return;
+            ResetConfig(config);
+            AssetDatabase.SaveAssets();
+        }
+
+        static void ResetConfig(GameConfig config)
+        {
+            var fresh = ScriptableObject.CreateInstance<GameConfig>();
+            fresh.rooms = config.rooms;
+            fresh.litMaterial = config.litMaterial;
+            fresh.unlitMaterial = config.unlitMaterial;
+            fresh.fxMaterial = config.fxMaterial;
+            EditorUtility.CopySerialized(fresh, config);
+            Object.DestroyImmediate(fresh);
+            EditorUtility.SetDirty(config);
+            Debug.Log("[ProjectBuilder] GameConfig сброшен к значениям из кода");
         }
 
         /// <summary>Сборка Windows-билда в Builds/Win (папка в .gitignore).</summary>

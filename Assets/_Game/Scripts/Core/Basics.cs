@@ -104,6 +104,7 @@ namespace PulyaDura
         public static Material Wall { get; private set; }
         public static Material Crate { get; private set; }
         public static Material Floor { get; private set; }
+        public static Material Tread { get; private set; }
 
         public static void Init(GameConfig config)
         {
@@ -121,6 +122,13 @@ namespace PulyaDura
             Crate = new Material(Wall) { name = "Crate" };
             Crate.SetColor(BaseColor, cfg.crateColor);
             Crate.SetTexture(EmissionMap, EdgeTexture(64, 6));
+
+            Tread = new Material(cfg.litMaterial) { name = "Tread" };
+            Tread.SetColor(BaseColor, cfg.trackColor * 2.2f);
+            Tread.SetTexture(BaseMap, TreadTexture());
+            Tread.SetFloat(Smoothness, 0.5f);
+            Tread.SetColor(EmissionColor, Color.black);
+            Tread.EnableKeyword("_EMISSION");
 
             var grid = GridTexture(64);
             Floor = new Material(cfg.litMaterial) { name = "Floor" };
@@ -170,6 +178,23 @@ namespace PulyaDura
                 int d = Mathf.Min(Mathf.Min(x, y), Mathf.Min(size - 1 - x, size - 1 - y));
                 byte v = d < border ? (byte)255 : d < border + 2 ? (byte)70 : (byte)10;
                 px[y * size + x] = new Color32(v, v, v, 255);
+            }
+            tex.SetPixels32(px);
+            tex.Apply(true);
+            return tex;
+        }
+
+        /// <summary>Поперечные траки: светлые полосы с тёмными зазорами, повторяются вдоль U.</summary>
+        static Texture2D TreadTexture()
+        {
+            const int w = 32, h = 8;
+            var tex = new Texture2D(w, h, TextureFormat.RGBA32, true) { wrapMode = TextureWrapMode.Repeat, name = "Tread", filterMode = FilterMode.Bilinear };
+            var px = new Color32[w * h];
+            for (int y = 0; y < h; y++)
+            for (int x = 0; x < w; x++)
+            {
+                byte v = x % 16 < 3 ? (byte)40 : x % 16 < 5 ? (byte)120 : (byte)200;
+                px[y * w + x] = new Color32(v, v, v, 255);
             }
             tex.SetPixels32(px);
             tex.Apply(true);

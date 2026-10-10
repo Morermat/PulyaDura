@@ -1,3 +1,5 @@
 Roboto — шрифт Google, Copyright 2011 Google Inc.
 Лицензия: Apache License, Version 2.0 — https://www.apache.org/licenses/LICENSE-2.0
 Файлы взяты без изменений из пакета Unity com.unity.searcher.
+Roboto Mono — шрифт Google, Copyright 2015 Google Inc.
+Лицензия: Apache License, Version 2.0. Файл взят без изменений из ресурсов редактора Unity.

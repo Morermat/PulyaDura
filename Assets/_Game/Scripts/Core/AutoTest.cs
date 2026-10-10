@@ -118,6 +118,9 @@ namespace PulyaDura
             Shot("01_garage");
             yield return null;
 
+            // 1б. Лист моделей: все сочетания корпус × пушка и все типы врагов крупным планом
+            yield return ModelSheet();
+
             // 2. Выбор корпуса и пушки клавишами мыши не проверяем, проверяем API
             gm.SelectHull(1);
             gm.SelectTurret(0);
@@ -126,6 +129,7 @@ namespace PulyaDura
             yield return Tap(Key.Enter);
             yield return Wait(0.3f);
             Check("Enter в гараже начинает забег", gm.State == GameState.Playing, $"state={gm.State}");
+            Check("В первой комнате под танком подсказка клавиш", GameObject.Find("Tutorial") != null);
             Shot("02_room1_start");
             yield return Wait(0.6f);
 
@@ -253,6 +257,47 @@ namespace PulyaDura
             yield return Wait(5f);
             Check("Снайпер стреляет через отскок из-за стены", enemyShots > 0, $"enemyShots={enemyShots}");
             Shot("07b_sniper_bank");
+            p.Invulnerable = false;
+
+            // 11в. Встречные снаряды гасят друг друга
+            gm.DebugLoadRoom(0);
+            yield return Wait(0.5f);
+            p = gm.Player;
+            p.GetComponent<PlayerController>().enabled = false;
+            p.Invulnerable = true;
+            Tank dummyOwner = null;
+            foreach (var t in Tank.All) if (t.Team == Team.Enemy) { dummyOwner = t; break; }
+            var cannon = GameManager.Cfg.Turret("cannon");
+            ProjectileSystem.I.Spawn(p, cannon, CellToWorld(4, 10, 21, 13) + Vector3.up * Ricochet.ShotHeight, Vector3.right, 0f);
+            ProjectileSystem.I.Spawn(dummyOwner, cannon, CellToWorld(16, 10, 21, 13) + Vector3.up * Ricochet.ShotHeight, Vector3.left, 0f);
+            int flying = ProjectileSystem.I.CountAlive();
+            yield return Wait(1.2f);
+            Check("Встречные снаряды гасят друг друга", flying == 2 && ProjectileSystem.I.CountAlive() == 0 && dummyOwner != null && !dummyOwner.IsDead,
+                $"было {flying}, осталось {ProjectileSystem.I.CountAlive()}");
+            p.Invulnerable = false;
+
+            // 11г. Враг стреляет за кадром — у края экрана стрелка в его сторону
+            gm.DebugLoadRoom(6);
+            yield return Wait(0.6f);
+            p = gm.Player;
+            p.GetComponent<PlayerController>().enabled = false;
+            p.Invulnerable = true;
+            Tank offscreen = null;
+            foreach (var t in Tank.All)
+            {
+                if (t.Team != Team.Enemy) continue;
+                Vector3 vp = Camera.main.WorldToViewportPoint(t.transform.position);
+                if (vp.x < 0f || vp.x > 1f || vp.y < 0f || vp.y > 1f) { offscreen = t; break; }
+            }
+            if (offscreen != null)
+            {
+                offscreen.Visual.SetTurretDirection(Vector3.back);
+                offscreen.Weapon.TryFire();
+                yield return Wait(0.6f);
+                Check("Стрелка к врагу за кадром", gm.UI.ActiveEdgeMarks > 0, $"стрелок: {gm.UI.ActiveEdgeMarks}");
+                Shot("07c_edge_mark");
+            }
+            else Note("нет врага за кадром в комнате 7 — проверка стрелки пропущена");
             p.Invulnerable = false;
 
             // 12. Проход всех комнат до победы
@@ -400,6 +445,69 @@ namespace PulyaDura
         {
             float c = GameManager.Cfg.cellSize;
             return new Vector3(-(w - 1) * c * 0.5f + x * c, 0f, (h - 1) * c * 0.5f - y * c);
+        }
+
+        /// <summary>Расставляет витрину танков вдали от уровня и снимает её с двух ракурсов.</summary>
+        IEnumerator ModelSheet()
+        {
+            var cfg = GameManager.Cfg;
+            var ui = GameObject.Find("UI");
+            ui.SetActive(false);
+            var root = new GameObject("ModelSheet").transform;
+            root.position = new Vector3(200f, 0f, 0f);
+            var floor = Prims.Part("Floor", PrimitiveType.Cube, root, new Vector3(0f, -0.5f, 0f), new Vector3(30f, 1f, 30f), Mats.Lit(new Color(0.05f, 0.055f, 0.07f), 0.3f));
+            var light = new GameObject("Key").AddComponent<Light>();
+            light.transform.SetParent(root, false);
+            light.type = LightType.Directional;
+            light.intensity = 1.6f;
+            light.transform.rotation = Quaternion.Euler(50f, -30f, 0f);
+
+            for (int h = 0; h < cfg.hulls.Count; h++)
+            for (int t = 0; t < cfg.turrets.Count; t++)
+            {
+                var go = new GameObject($"T{h}{t}");
+                go.transform.SetParent(root, false);
+                go.transform.localPosition = new Vector3((t - 1.5f) * 2.4f, 0f, (1 - h) * 2.4f);
+                go.transform.localRotation = Quaternion.Euler(0f, 200f, 0f);
+                var v = go.AddComponent<TankVisual>();
+                v.Build(cfg.hulls[h], cfg.turrets[t], Team.Player, null, false);
+                v.SetTurretLocalYaw(-30f);
+            }
+            CameraRig.I.LookAt(root.position, 13f, 45f);
+            yield return Wait(0.4f);
+            Shot("00a_models_player");
+            yield return null;
+            yield return null;
+
+            foreach (Transform child in root) if (child.name.StartsWith("T")) Destroy(child.gameObject);
+            for (int i = 0; i < cfg.enemies.Count; i++)
+            {
+                var e = cfg.enemies[i];
+                var go = new GameObject("E" + i);
+                go.transform.SetParent(root, false);
+                go.transform.localPosition = new Vector3((i % 3 - 1) * 2.8f, 0f, (i / 3 == 0 ? 1.4f : -1.4f));
+                go.transform.localRotation = Quaternion.Euler(0f, 200f, 0f);
+                var v = go.AddComponent<TankVisual>();
+                v.Build(cfg.Hull(e.hullId), cfg.Turret(e.turretId), Team.Enemy, e, false);
+                v.SetTurretLocalYaw(-30f);
+                v.Reveal(0.35f);
+            }
+            CameraRig.I.LookAt(root.position, 10f, 40f);
+            yield return Wait(0.4f);
+            Shot("00b_models_enemies");
+            yield return null;
+            yield return null;
+
+            // Вид из игры: тот же угол, что у игровой камеры
+            CameraRig.I.LookAt(root.position, 16f, 58f);
+            yield return Wait(0.3f);
+            Shot("00c_models_gameplay_angle");
+            yield return null;
+            yield return null;
+            Destroy(root.gameObject);
+            ui.SetActive(true);
+            GameManager.I.EnterGarage();
+            yield return Wait(0.5f);
         }
 
         static void Fire(Tank t, Vector3 dir)

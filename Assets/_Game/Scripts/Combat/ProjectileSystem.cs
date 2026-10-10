@@ -9,6 +9,7 @@ namespace PulyaDura
         public Team team;
         public TurretConfig cfg;
         public Vector3 pos;
+        public Vector3 prevPos;
         public Vector3 dir;
         public float distanceLeft;
         public int bouncesLeft;
@@ -54,6 +55,7 @@ namespace PulyaDura
                 team = owner.Team,
                 cfg = turret,
                 pos = origin,
+                prevPos = origin,
                 dir = Prims.Flat(dir).normalized,
                 distanceLeft = turret.range,
                 bouncesLeft = turret.bounces,
@@ -64,6 +66,7 @@ namespace PulyaDura
             p.visual.Show(p.pos, turret.projectileRadius, ColorOf(p), withLight);
             Step(p, advance);
             if (p.dead) { Release(p); return; }
+            p.prevPos = p.pos;
             p.visual.Move(p.pos, ColorOf(p));
             p.visual.ResetTrail();
             active.Add(p);
@@ -81,10 +84,15 @@ namespace PulyaDura
         void Update()
         {
             float dt = Time.deltaTime;
+            foreach (var p in active)
+            {
+                p.prevPos = p.pos;
+                Step(p, p.cfg.projectileSpeed * dt);
+            }
+            CancelCollidingShells();
             for (int i = active.Count - 1; i >= 0; i--)
             {
                 var p = active[i];
-                Step(p, p.cfg.projectileSpeed * dt);
                 if (p.dead)
                 {
                     Release(p);
@@ -97,28 +105,44 @@ namespace PulyaDura
             }
         }
 
+        /// <summary>
+        /// Снаряды разных владельцев гасят друг друга (как в Wii Tanks): летящую в тебя пулю можно сбить.
+        /// Проверяем сближение за весь кадр, а не только конечные точки, чтобы встречные пули не проскакивали.
+        /// </summary>
+        void CancelCollidingShells()
+        {
+            for (int i = 0; i < active.Count; i++)
+            {
+                var a = active[i];
+                if (a.dead) continue;
+                for (int j = i + 1; j < active.Count; j++)
+                {
+                    var b = active[j];
+                    if (b.dead || a.owner == b.owner) continue;
+                    Vector3 p0 = a.prevPos - b.prevPos;
+                    Vector3 v = (a.pos - a.prevPos) - (b.pos - b.prevPos);
+                    float t = v.sqrMagnitude < 1e-6f ? 1f : Mathf.Clamp01(-Vector3.Dot(p0, v) / v.sqrMagnitude);
+                    float r = a.cfg.projectileRadius + b.cfg.projectileRadius + 0.05f;
+                    if ((p0 + v * t).sqrMagnitude > r * r) continue;
+
+                    Vector3 at = Vector3.Lerp(a.prevPos, a.pos, t);
+                    Die(a, false);
+                    Die(b, false);
+                    Fx.I.Sparks(at, Vector3.up, Color.white * 2f, 18, 6f);
+                    Fx.I.LightFlash(at + Vector3.up * 0.3f, Color.white, 3.5f, 4f, 0.12f);
+                    EchoSystem.I.Emit(at, 3f, cfg.echoColor, 0.7f);
+                    Sfx.I.Play(SfxId.Hit, at, 0.7f, 1.6f);
+                    break;
+                }
+            }
+        }
+
         void Step(Projectile p, float dist)
         {
             int guard = 0;
             while (dist > 0f && !p.dead && guard++ < 8)
             {
-                int n = Physics.SphereCastNonAlloc(p.pos, p.cfg.projectileRadius, p.dir, hits, dist, Layers.SolidMask, QueryTriggerInteraction.Ignore);
-                int best = -1;
-                float bestDist = float.MaxValue;
-                for (int k = 0; k < n; k++)
-                {
-                    var h = hits[k];
-                    bool overlapAtStart = h.distance <= 0f && h.point == Vector3.zero;
-                    if (h.collider.TryGetComponent<Tank>(out var t))
-                    {
-                        if (t.IsDead || t.Invulnerable) continue;
-                        if (t == p.owner && p.bouncesDone == 0) continue; // своя пуля не бьёт до первого отскока
-                    }
-                    else if (overlapAtStart) continue;
-                    if (h.distance < bestDist) { bestDist = h.distance; best = k; }
-                }
-
-                if (best < 0)
+                if (!FindHit(p, dist, out var hit))
                 {
                     p.pos += p.dir * dist;
                     p.distanceLeft -= dist;
@@ -126,69 +150,103 @@ namespace PulyaDura
                     return;
                 }
 
-                var hit = hits[best];
                 p.pos += p.dir * hit.distance;
                 p.distanceLeft -= hit.distance;
                 dist -= hit.distance;
                 Vector3 normal = Prims.Flat(hit.normal).normalized;
                 if (normal.sqrMagnitude < 0.01f) normal = -p.dir;
 
-                if (hit.collider.TryGetComponent<Tank>(out var tank))
-                {
-                    if (tank.MirrorActive)
-                    {
-                        // Зеркало: пуля отражается и становится пулей владельца зеркала
-                        p.dir = Prims.Flat(Vector3.Reflect(p.dir, normal)).normalized;
-                        p.pos += normal * 0.05f;
-                        p.owner = tank;
-                        p.team = tank.Team;
-                        p.bouncesDone = 0;
-                        Sfx.I.Play(SfxId.Mirror, p.pos, 0.6f, 1.4f);
-                        Fx.I.Sparks(p.pos, normal, cfg.bulletPlayer, 10, 5f);
-                        EchoSystem.I.Emit(p.pos, EchoRadius(p), cfg.echoColor);
-                        continue;
-                    }
-                    tank.TakeDamage(new DamageInfo { amount = p.cfg.damage, source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone });
-                    EchoSystem.I.Emit(p.pos, EchoRadius(p) * 0.6f, EchoColor(p), 0.8f);
-                    Fx.I.Sparks(p.pos, -p.dir, ColorOf(p), 14 + 8 * p.bouncesDone, 6f);
-                    Die(p, false);
-                    return;
-                }
-
-                if (hit.collider.TryGetComponent<Crate>(out var crate))
-                {
-                    crate.TakeDamage(new DamageInfo { amount = p.cfg.damage, source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone });
-                    EchoSystem.I.Emit(p.pos, EchoRadius(p) * 0.6f, EchoColor(p), 0.7f);
-                    Die(p, false);
-                    return;
-                }
-
-                // Стена: отскок, эхо, звук «тинь» (каждый следующий выше — отскоки слышно на слух)
-                EchoSystem.I.Emit(p.pos, EchoRadius(p), EchoColor(p));
-                Fx.I.Sparks(p.pos, normal, ColorOf(p), 8 + 4 * p.bouncesDone, 4f);
-                GameEvents.RaiseNoise(p.pos, p.cfg.noiseRadius * 0.6f, p.team);
-                if (p.bouncesLeft <= 0)
-                {
-                    Sfx.I.Play(SfxId.Tink, p.pos, 0.5f, 0.7f);
-                    Die(p, true);
-                    return;
-                }
-                p.bouncesLeft--;
-                p.bouncesDone++;
-                p.dir = Prims.Flat(Vector3.Reflect(p.dir, normal)).normalized;
-                p.pos += normal * 0.02f;
-                p.visual.SetRadius(p.cfg.projectileRadius * (1f + 0.2f * p.bouncesDone));
-                Sfx.I.Play(SfxId.Tink, p.pos, 0.7f, 1f + p.bouncesDone * 0.12f);
+                if (hit.collider.TryGetComponent<Tank>(out var tank)) HitTank(p, tank, normal);
+                else if (hit.collider.TryGetComponent<Crate>(out var crate)) HitCrate(p, crate);
+                else HitWall(p, normal);
             }
         }
 
-        Color EchoColor(Projectile p) => p.team == Team.Player ? cfg.echoColor : cfg.enemyEchoColor;
+        /// <summary>Ближайшее препятствие на пути. Своя пуля не бьёт владельца до первого отскока.</summary>
+        bool FindHit(Projectile p, float dist, out RaycastHit result)
+        {
+            int n = Physics.SphereCastNonAlloc(p.pos, p.cfg.projectileRadius, p.dir, hits, dist, Layers.SolidMask, QueryTriggerInteraction.Ignore);
+            int best = -1;
+            float bestDist = float.MaxValue;
+            for (int k = 0; k < n; k++)
+            {
+                var h = hits[k];
+                bool overlapAtStart = h.distance <= 0f && h.point == Vector3.zero;
+                if (h.collider.TryGetComponent<Tank>(out var t))
+                {
+                    if (t.IsDead || t.Invulnerable) continue;
+                    if (t == p.owner && p.bouncesDone == 0) continue;
+                }
+                else if (overlapAtStart) continue;
+                if (h.distance < bestDist) { bestDist = h.distance; best = k; }
+            }
+            result = best >= 0 ? hits[best] : default;
+            return best >= 0;
+        }
+
+        void HitTank(Projectile p, Tank tank, Vector3 normal)
+        {
+            if (tank.MirrorActive)
+            {
+                // Зеркало: пуля отражается и становится пулей владельца зеркала
+                p.dir = Prims.Flat(Vector3.Reflect(p.dir, normal)).normalized;
+                p.pos += normal * 0.05f;
+                p.owner = tank;
+                p.team = tank.Team;
+                p.bouncesDone = 0;
+                Sfx.I.Play(SfxId.Mirror, p.pos, 0.6f, 1.4f);
+                Fx.I.Sparks(p.pos, normal, cfg.bulletPlayer, 10, 5f);
+                EchoSystem.I.Emit(p.pos, EchoRadius(p), cfg.echoColor);
+                return;
+            }
+            tank.TakeDamage(new DamageInfo { amount = p.cfg.damage, source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone });
+            EchoSystem.I.Emit(p.pos, EchoRadius(p) * 0.6f, EchoColor(p), 0.8f);
+            Fx.I.Sparks(p.pos, -p.dir, ColorOf(p), 14 + 8 * p.bouncesDone, 6f);
+            Die(p, false);
+        }
+
+        void HitCrate(Projectile p, Crate crate)
+        {
+            crate.TakeDamage(new DamageInfo { amount = p.cfg.damage, source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone });
+            EchoSystem.I.Emit(p.pos, EchoRadius(p) * 0.6f, EchoColor(p), 0.7f);
+            Die(p, false);
+        }
+
+        /// <summary>Стена: эхо, шум, отскок. Каждый следующий «тинь» выше — отскоки слышно на слух.</summary>
+        void HitWall(Projectile p, Vector3 normal)
+        {
+            EchoSystem.I.Emit(p.pos, EchoRadius(p), EchoColor(p));
+            Fx.I.Sparks(p.pos, normal, ColorOf(p), 8 + 4 * p.bouncesDone, 4f);
+            GameEvents.RaiseNoise(p.pos, p.cfg.noiseRadius * 0.6f, p.team);
+            if (p.bouncesLeft <= 0)
+            {
+                Sfx.I.Play(SfxId.Tink, p.pos, 0.5f, 0.7f);
+                Die(p, true);
+                return;
+            }
+            p.bouncesLeft--;
+            p.bouncesDone++;
+            p.dir = Prims.Flat(Vector3.Reflect(p.dir, normal)).normalized;
+            p.pos += normal * 0.02f;
+            p.visual.SetRadius(p.cfg.projectileRadius * (1f + 0.2f * p.bouncesDone));
+            Sfx.I.Play(SfxId.Tink, p.pos, 0.7f, 1f + p.bouncesDone * 0.12f);
+        }
+
+        /// <summary>Сколько снарядов сейчас в полёте (для QA).</summary>
+        public int CountAlive()
+        {
+            int n = 0;
+            foreach (var p in active) if (!p.dead) n++;
+            return n;
+        }
 
         void Die(Projectile p, bool fizzle)
         {
             p.dead = true;
             if (fizzle) Fx.I.Sparks(p.pos, -p.dir, ColorOf(p), 5, 2f);
         }
+
+        Color EchoColor(Projectile p) => p.team == Team.Player ? cfg.echoColor : cfg.enemyEchoColor;
 
         void Release(Projectile p)
         {

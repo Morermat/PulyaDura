@@ -7,6 +7,8 @@ namespace PulyaDura
     public enum AbilityType { Dash, Mirror, Wall }
     public enum FireMode { Projectile, Rail }
     public enum EnemyBehaviour { Dummy, Static, Hunter }
+    public enum HullStyle { Light, Medium, Heavy }
+    public enum TurretStyle { Cannon, Plasma, Shotgun, Rail }
 
     [Serializable]
     public class HullConfig
@@ -14,6 +16,7 @@ namespace PulyaDura
         public string id;
         public string title;
         [TextArea] public string description;
+        public HullStyle style = HullStyle.Medium;
         public int maxHp = 5;
         public float speed = 5f;
         public float turnSpeed = 540f;
@@ -32,6 +35,7 @@ namespace PulyaDura
         public string id;
         public string title;
         [TextArea] public string description;
+        public TurretStyle style = TurretStyle.Cannon;
         public FireMode mode = FireMode.Projectile;
         public int damage = 2;
         public float reload = 0.5f;
@@ -60,6 +64,8 @@ namespace PulyaDura
         public string hullId;
         public string turretId;
         public EnemyBehaviour behaviour = EnemyBehaviour.Static;
+        [Tooltip("Цвет фар и сенсора: тип врага узнаётся по цвету")]
+        [ColorUsage(false, true)] public Color accent;
         [Tooltip("0 = как у корпуса")] public int hpOverride;
         public float fireInterval = 1.6f;
         [Tooltip("Ошибка прицела в градусах")] public float aimError = 4f;
@@ -152,7 +158,7 @@ namespace PulyaDura
         {
             new HullConfig
             {
-                id = "strizh", title = "Стриж", description = "Быстрый, 3 брони",
+                id = "strizh", title = "Стриж", style = HullStyle.Light, description = "Быстрый, 3 брони",
                 maxHp = 3, speed = 6.6f, size = new Vector2(0.95f, 1.15f), height = 0.26f,
                 ability = AbilityType.Dash, abilityTitle = "Рывок",
                 abilityDescription = "рывок сквозь пули",
@@ -160,7 +166,7 @@ namespace PulyaDura
             },
             new HullConfig
             {
-                id = "barsuk", title = "Барсук", description = "Средний, 5 брони",
+                id = "barsuk", title = "Барсук", style = HullStyle.Medium, description = "Средний, 5 брони",
                 maxHp = 5, speed = 5f, size = new Vector2(1.1f, 1.3f), height = 0.32f,
                 ability = AbilityType.Mirror, abilityTitle = "Зеркало",
                 abilityDescription = "отражает пули 2,5 с",
@@ -168,7 +174,7 @@ namespace PulyaDura
             },
             new HullConfig
             {
-                id = "begemot", title = "Бегемот", description = "Медленный, 8 брони",
+                id = "begemot", title = "Бегемот", style = HullStyle.Heavy, description = "Медленный, 8 брони",
                 maxHp = 8, speed = 3.8f, size = new Vector2(1.3f, 1.5f), height = 0.4f,
                 ability = AbilityType.Wall, abilityTitle = "Стенка",
                 abilityDescription = "ставит стену на 6 с",
@@ -180,28 +186,28 @@ namespace PulyaDura
         {
             new TurretConfig
             {
-                id = "cannon", title = "Пушка", description = "2 отскока · большое эхо",
+                id = "cannon", title = "Пушка", style = TurretStyle.Cannon, description = "2 отскока · большое эхо",
                 mode = FireMode.Projectile, damage = 2, reload = 0.55f, projectileSpeed = 14f, projectileRadius = 0.14f,
                 bounces = 2, range = 45f, echoRadius = 6.5f, noiseRadius = 14f,
                 barrels = 1, barrelLength = 0.85f, barrelWidth = 0.16f, turretSize = 0.62f
             },
             new TurretConfig
             {
-                id = "plasma", title = "Плазма", description = "очередь · 3 отскока",
+                id = "plasma", title = "Плазма", style = TurretStyle.Plasma, description = "очередь · 3 отскока",
                 mode = FireMode.Projectile, damage = 1, reload = 0.17f, projectileSpeed = 11f, projectileRadius = 0.1f,
                 bounces = 3, range = 30f, echoRadius = 3.2f, noiseRadius = 9f,
                 barrels = 2, barrelLength = 0.7f, barrelWidth = 0.09f, barrelSpacing = 0.18f, turretSize = 0.58f
             },
             new TurretConfig
             {
-                id = "shotgun", title = "Дробовик", description = "веер из 6 дробин",
+                id = "shotgun", title = "Дробовик", style = TurretStyle.Shotgun, description = "веер из 6 дробин",
                 mode = FireMode.Projectile, damage = 1, reload = 0.9f, pellets = 6, spread = 34f,
                 projectileSpeed = 16f, projectileRadius = 0.09f, bounces = 1, range = 11f, echoRadius = 2.6f, noiseRadius = 12f,
                 barrels = 1, barrelLength = 0.55f, barrelWidth = 0.26f, turretSize = 0.66f
             },
             new TurretConfig
             {
-                id = "rail", title = "Рельса", description = "заряд · луч насквозь",
+                id = "rail", title = "Рельса", style = TurretStyle.Rail, description = "заряд · луч насквозь",
                 mode = FireMode.Rail, damage = 4, reload = 1.8f, chargeTime = 0.5f, projectileRadius = 0.12f,
                 bounces = 3, range = 40f, echoRadius = 5f, noiseRadius = 18f,
                 barrels = 2, barrelLength = 1.05f, barrelWidth = 0.07f, barrelSpacing = 0.12f, turretSize = 0.6f
@@ -210,12 +216,12 @@ namespace PulyaDura
 
         static List<EnemyConfig> DefaultEnemies() => new()
         {
-            new EnemyConfig { symbol = "d", title = "Мишень", hullId = "barsuk", turretId = "cannon", behaviour = EnemyBehaviour.Dummy, hpOverride = 2 },
-            new EnemyConfig { symbol = "t", title = "Турель", hullId = "begemot", turretId = "cannon", behaviour = EnemyBehaviour.Static, hpOverride = 4, fireInterval = 1.8f, aimError = 5f, turretTurnSpeed = 120f, hearing = 1.3f },
-            new EnemyConfig { symbol = "h", title = "Охотник", hullId = "strizh", turretId = "plasma", behaviour = EnemyBehaviour.Hunter, fireInterval = 0.9f, aimError = 7f, turretTurnSpeed = 200f, speedMultiplier = 0.7f },
-            new EnemyConfig { symbol = "g", title = "Громила", hullId = "barsuk", turretId = "shotgun", behaviour = EnemyBehaviour.Hunter, fireInterval = 1.6f, aimError = 4f, turretTurnSpeed = 160f, speedMultiplier = 0.8f },
-            new EnemyConfig { symbol = "s", title = "Снайпер", hullId = "barsuk", turretId = "cannon", behaviour = EnemyBehaviour.Static, bankShots = true, fireInterval = 2.4f, aimError = 1.5f, turretTurnSpeed = 110f, hearing = 1.7f },
-            new EnemyConfig { symbol = "B", title = "Бегемот", hullId = "begemot", turretId = "rail", behaviour = EnemyBehaviour.Hunter, hpOverride = 14, bankShots = true, fireInterval = 2.6f, aimError = 2f, turretTurnSpeed = 90f, speedMultiplier = 0.85f, memory = 6f },
+            new EnemyConfig { symbol = "d", title = "Мишень", accent = new Color(1.2f, 1.2f, 1.2f), hullId = "barsuk", turretId = "cannon", behaviour = EnemyBehaviour.Dummy, hpOverride = 2 },
+            new EnemyConfig { symbol = "t", title = "Турель", accent = new Color(3f, 1.6f, 0.2f), hullId = "begemot", turretId = "cannon", behaviour = EnemyBehaviour.Static, hpOverride = 4, fireInterval = 1.8f, aimError = 5f, turretTurnSpeed = 120f, hearing = 1.3f },
+            new EnemyConfig { symbol = "h", title = "Охотник", accent = new Color(3f, 0.35f, 0.25f), hullId = "strizh", turretId = "plasma", behaviour = EnemyBehaviour.Hunter, fireInterval = 0.9f, aimError = 7f, turretTurnSpeed = 200f, speedMultiplier = 0.7f },
+            new EnemyConfig { symbol = "g", title = "Громила", accent = new Color(1.8f, 0.4f, 3f), hullId = "barsuk", turretId = "shotgun", behaviour = EnemyBehaviour.Hunter, fireInterval = 1.6f, aimError = 4f, turretTurnSpeed = 160f, speedMultiplier = 0.8f },
+            new EnemyConfig { symbol = "s", title = "Снайпер", accent = new Color(0.5f, 3f, 0.6f), hullId = "barsuk", turretId = "cannon", behaviour = EnemyBehaviour.Static, bankShots = true, fireInterval = 2.4f, aimError = 1.5f, turretTurnSpeed = 110f, hearing = 1.7f },
+            new EnemyConfig { symbol = "B", title = "Бегемот", accent = new Color(3f, 0.3f, 1.6f), hullId = "begemot", turretId = "rail", behaviour = EnemyBehaviour.Hunter, hpOverride = 14, bankShots = true, fireInterval = 2.6f, aimError = 2f, turretTurnSpeed = 90f, speedMultiplier = 0.85f, memory = 6f },
         };
     }
 }

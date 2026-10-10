@@ -19,8 +19,9 @@ namespace PulyaDura
     }
 
     /// <summary>
-    /// Точка входа и состояния игры: Гараж → Комнаты → Результат.
-    /// Сцена почти пустая: камера и этот объект. Всё остальное собирается из GameConfig.
+    /// Точка входа и правила забега: Гараж → Комнаты → Итоги, жизни, счёт, рекорды.
+    /// Вид и «сок» живут отдельно: GarageStage, CombatFeedback, PostFx, GameUI.
+    /// Сцена почти пустая: камера и этот объект, остальное собирается из GameConfig.
     /// </summary>
     public class GameManager : MonoBehaviour
     {
@@ -36,26 +37,21 @@ namespace PulyaDura
         public Transform LevelRoot => level.Root;
         public int RoomIndex { get; private set; }
         public int RoomCount => rooms.Count;
-        public RoomData CurrentRoom => rooms[RoomIndex];
         public int Lives { get; private set; }
         public RunStats Stats { get; private set; } = new();
         public int HullIndex { get; private set; }
         public int TurretIndex { get; private set; }
-        public Transform GarageTank => garageTank != null ? garageTank.transform : null;
+        public Transform GarageTank => garage.Tank;
+        public GameUI UI => ui;
 
         List<RoomData> rooms;
         LevelBuilder level;
         GameUI ui;
-        Transform garage;
-        GameObject garageTank;
+        GarageStage garage;
+        CombatFeedback feedback;
         Coroutine flow;
         int streak;
         float streakTime;
-        Vignette vignette;
-        ChromaticAberration aberration;
-        float hurtPulse;
-
-        static readonly Vector3 GaragePos = new(0f, 0f, -300f);
 
         void Awake()
         {
@@ -68,13 +64,16 @@ namespace PulyaDura
             // В редакторе клавиатура доходит до игры, даже если фокус в другой вкладке
             InputSystem.settings.editorInputBehaviorInPlayMode = InputSettings.EditorInputBehaviorInPlayMode.AllDeviceInputAlwaysGoesToGameView;
 #endif
-
             SetupEnvironment();
+
             gameObject.AddComponent<TimeController>();
             if (GetComponent<Sfx>() == null) gameObject.AddComponent<Sfx>();
             gameObject.AddComponent<Fx>().Init();
+            new GameObject("PostFX").AddComponent<PostFx>();
             new GameObject("Echo").AddComponent<EchoSystem>().Init(config);
             new GameObject("Projectiles").AddComponent<ProjectileSystem>().Init(config);
+            garage = new GameObject("Garage").AddComponent<GarageStage>();
+            garage.Init(config);
             level = new LevelBuilder(config);
 
             HullIndex = Mathf.Clamp(PlayerPrefs.GetInt("hull", 1), 0, config.hulls.Count - 1);
@@ -82,6 +81,8 @@ namespace PulyaDura
 
             ui = gameObject.AddComponent<GameUI>();
             ui.Build(this);
+            feedback = gameObject.AddComponent<CombatFeedback>();
+            feedback.Init(config, ui);
         }
 
         void Start() => EnterGarage();
@@ -89,14 +90,12 @@ namespace PulyaDura
         void OnEnable()
         {
             GameEvents.TankKilled += OnKilled;
-            GameEvents.TankDamaged += OnDamaged;
             GameEvents.ShotFired += OnShot;
         }
 
         void OnDisable()
         {
             GameEvents.TankKilled -= OnKilled;
-            GameEvents.TankDamaged -= OnDamaged;
             GameEvents.ShotFired -= OnShot;
         }
 
@@ -119,26 +118,6 @@ namespace PulyaDura
             data.renderPostProcessing = true;
             data.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
             if (cam.GetComponent<CameraRig>() == null) cam.gameObject.AddComponent<CameraRig>();
-
-            var volume = new GameObject("PostFX").AddComponent<Volume>();
-            volume.isGlobal = true;
-            volume.priority = 10f;
-            var profile = ScriptableObject.CreateInstance<VolumeProfile>();
-            var bloom = profile.Add<Bloom>(true);
-            bloom.intensity.Override(1.3f);
-            bloom.threshold.Override(0.8f);
-            bloom.scatter.Override(0.72f);
-            vignette = profile.Add<Vignette>(true);
-            vignette.intensity.Override(0.38f);
-            vignette.smoothness.Override(0.45f);
-            vignette.color.Override(Color.black);
-            aberration = profile.Add<ChromaticAberration>(true);
-            aberration.intensity.Override(0.08f);
-            var tone = profile.Add<Tonemapping>(true);
-            tone.mode.Override(TonemappingMode.ACES);
-            var grain = profile.Add<FilmGrain>(true);
-            grain.intensity.Override(0.18f);
-            volume.profile = profile;
 
             if (FindAnyObjectByType<EventSystem>() == null)
             {
@@ -166,11 +145,7 @@ namespace PulyaDura
             level.Clear();
             Player = null;
             State = GameState.Garage;
-            BuildGarage();
-            garage.gameObject.SetActive(true);
-            RebuildGarageTank();
-            // Танк чуть правее центра: слева заголовок, справа карточка выбора
-            CameraRig.I.LookAt(GaragePos + new Vector3(-0.35f, 0.45f, 0f), 9.5f, 26f);
+            garage.Show(config.hulls[HullIndex], config.turrets[TurretIndex]);
             ui.ShowGarage();
         }
 
@@ -178,43 +153,41 @@ namespace PulyaDura
         {
             HullIndex = Mathf.Clamp(i, 0, config.hulls.Count - 1);
             PlayerPrefs.SetInt("hull", HullIndex);
-            Sfx.I.Play(SfxId.Select);
-            RebuildGarageTank();
-            ui.RefreshGarage();
+            OnSelectionChanged();
         }
 
         public void SelectTurret(int i)
         {
             TurretIndex = Mathf.Clamp(i, 0, config.turrets.Count - 1);
             PlayerPrefs.SetInt("turret", TurretIndex);
+            OnSelectionChanged();
+        }
+
+        void OnSelectionChanged()
+        {
             Sfx.I.Play(SfxId.Select);
-            RebuildGarageTank();
+            if (State == GameState.Garage) garage.Show(config.hulls[HullIndex], config.turrets[TurretIndex]);
             ui.RefreshGarage();
         }
 
-        public void StartRun()
+        public void StartRun() => BeginRun(0);
+        public void RestartRun() => BeginRun(0);
+
+        /// <summary>Новый забег с нужной комнаты. Для отладки, автотеста и демо на защите: F1–F8 в редакторе.</summary>
+        public void DebugLoadRoom(int index)
+        {
+            if (index < 0 || index >= rooms.Count) return;
+            if (State is GameState.Garage or GameState.Result) BeginRun(index);
+            else LoadRoom(index);
+        }
+
+        void BeginRun(int room)
         {
             if (rooms.Count == 0) return;
             Stats = new RunStats();
             Lives = config.lives;
-            streak = 0;
-            if (garage != null) garage.gameObject.SetActive(false);
-            LoadRoom(0);
-        }
-
-        public void RestartRun() => StartRun();
-
-        /// <summary>Переход в комнату напрямую: для отладки, автотеста и демо на защите (F1–F8 в редакторе).</summary>
-        public void DebugLoadRoom(int index)
-        {
-            if (index < 0 || index >= rooms.Count) return;
-            if (State == GameState.Garage || State == GameState.Result)
-            {
-                Stats = new RunStats();
-                Lives = config.lives;
-                if (garage != null) garage.gameObject.SetActive(false);
-            }
-            LoadRoom(index);
+            garage.Hide();
+            LoadRoom(room);
         }
 
         void LoadRoom(int index)
@@ -225,9 +198,7 @@ namespace PulyaDura
             var room = rooms[index];
             level.Build(room);
 
-            var hull = config.hulls[HullIndex];
-            var turret = config.turrets[TurretIndex];
-            Player = Tank.Spawn(Team.Player, hull, turret, null, level.PlayerSpawn, Quaternion.identity, level.Root);
+            Player = Tank.Spawn(Team.Player, config.hulls[HullIndex], config.turrets[TurretIndex], null, level.PlayerSpawn, Quaternion.identity, level.Root);
             foreach (var (enemy, pos) in level.EnemySpawns)
             {
                 Vector3 look = Prims.Flat(level.PlayerSpawn - pos);
@@ -255,7 +226,6 @@ namespace PulyaDura
             switch (State)
             {
                 case GameState.Garage:
-                    if (garageTank != null) garageTank.transform.Rotate(0f, 25f * Time.unscaledDeltaTime, 0f, Space.World);
                     if (confirm) StartRun();
                     break;
                 case GameState.Playing:
@@ -274,16 +244,10 @@ namespace PulyaDura
             }
 
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
-            // Отладка: F1–F8 — сразу в нужную комнату
             if (kb != null && State != GameState.Result)
                 for (int i = 0; i < Mathf.Min(8, rooms.Count); i++)
                     if (kb[Key.F1 + i].wasPressedThisFrame) DebugLoadRoom(i);
 #endif
-
-            hurtPulse = Mathf.Max(0f, hurtPulse - Time.unscaledDeltaTime * 3f);
-            vignette.intensity.value = 0.38f + hurtPulse * 0.12f;
-            vignette.color.value = Color.Lerp(Color.black, new Color(0.35f, 0.02f, 0f), hurtPulse);
-            aberration.intensity.value = 0.08f + hurtPulse * 0.8f;
         }
 
         public void TogglePause()
@@ -293,75 +257,47 @@ namespace PulyaDura
             ui.ShowPause(TimeController.I.Paused);
         }
 
-        // ---------- События боя ----------
+        // ---------- Счёт ----------
 
         void OnShot(Tank t)
         {
             if (t.Team == Team.Player) Stats.shots++;
         }
 
-        void OnDamaged(Tank t, DamageInfo d)
-        {
-            if (t.IsDead) return;
-            ui.Floating(t.transform.position + Vector3.up * 1.1f, "-" + d.amount, t.Team == Team.Player ? UiKit.Danger : UiKit.TextColor, 30);
-            if (t.Team == Team.Player)
-            {
-                hurtPulse = 1f;
-                ui.DamageFlash();
-                CameraRig.I.Shake(0.45f);
-                TimeController.I.HitStop(0.07f);
-                Sfx.I.Play(SfxId.Hurt, t.transform.position);
-            }
-            else
-            {
-                TimeController.I.HitStop(0.035f);
-                Sfx.I.Play(SfxId.Hit, t.transform.position, 0.8f, UnityEngine.Random.Range(0.9f, 1.1f));
-            }
-        }
-
         void OnKilled(Tank t, DamageInfo d)
         {
-            Vector3 pos = t.transform.position;
-            Fx.I.Explosion(pos + Vector3.up * 0.4f, t.Team == Team.Player ? config.bulletDanger : config.enemyAccent);
-            Sfx.I.Play(SfxId.Explode, pos);
-            EchoSystem.I.Emit(pos, 7f, t.Team == Team.Player ? config.bulletDanger : config.enemyEchoColor, 1f);
-            CameraRig.I.Shake(0.5f);
-            TimeController.I.HitStop(0.09f);
-
             if (t.Team == Team.Player)
             {
+                feedback.OnKill(t, KillKind.Direct, 0);
                 PlayerDied(d);
                 return;
             }
 
             Stats.kills++;
             bool byPlayer = d.source != null && d.source.Team == Team.Player;
-            string label;
-            Color color = UiKit.Accent;
-            if (d.source == t) { label = "САМ СЕБЯ!"; color = UiKit.Enemy; }
-            else if (!byPlayer) { label = "ПРЕДАТЕЛЬ!"; color = UiKit.Enemy; }
-            else
+            KillKind kind = d.source == t ? KillKind.Self
+                : !byPlayer ? KillKind.Betrayal
+                : d.bounces >= 2 ? KillKind.DoubleRicochet
+                : d.bounces == 1 ? KillKind.Ricochet
+                : KillKind.Direct;
+            if (byPlayer)
             {
                 streak = Time.time - streakTime < 2.2f ? streak + 1 : 1;
                 streakTime = Time.time;
                 Stats.bestStreak = Mathf.Max(Stats.bestStreak, streak);
                 if (d.bounces > 0) Stats.ricochetKills++;
-                label = streak == 2 ? "ДУПЛЕТ!" : streak == 3 ? "ТРИПЛЕТ!" : streak > 3 ? $"СЕРИЯ x{streak}!"
-                    : d.bounces >= 2 ? "ДВОЙНОЙ РИКОШЕТ!" : d.bounces == 1 ? "РИКОШЕТ!" : "ПОПАЛ!";
-                if (d.bounces > 0 || streak > 1) color = UiKit.Danger;
-                if (d.bounces >= 2)
-                {
-                    // Награда за главный навык: замедление и наезд камеры на попадание
-                    TimeController.I.SlowMo(0.2f, 0.7f);
-                    CameraRig.I.Focus(pos, 0.3f, 1.1f);
-                }
             }
-            ui.Floating(pos + Vector3.up * 1.5f, label, color, 46);
+            feedback.OnKill(t, kind, byPlayer ? streak : 0);
 
+            if (EnemiesAlive() == 0 && State == GameState.Playing) RoomCleared();
+        }
+
+        static int EnemiesAlive()
+        {
             int alive = 0;
             foreach (var other in Tank.All)
                 if (other.Team == Team.Enemy && !other.IsDead) alive++;
-            if (alive == 0 && State == GameState.Playing) RoomCleared();
+            return alive;
         }
 
         void PlayerDied(DamageInfo d)
@@ -371,8 +307,7 @@ namespace PulyaDura
             Lives--;
             State = GameState.Dead;
             bool self = d.source != null && d.source == Player;
-            ui.Banner(self ? "ПУЛЯ — ДУРА" : "ПОДБИТ",
-                Lives > 0 ? $"Осталось жизней: {Lives}" : "Жизни кончились", UiKit.Danger);
+            ui.Banner(self ? "ПУЛЯ — ДУРА" : "ПОДБИТ", Lives > 0 ? $"Осталось жизней: {Lives}" : "Жизни кончились", UiKit.Danger);
             Sfx.I.Play(SfxId.Death);
             TimeController.I.SlowMo(0.25f, 0.8f);
             flow = StartCoroutine(After(1.7f, () =>
@@ -427,53 +362,6 @@ namespace PulyaDura
             yield return new WaitForSecondsRealtime(seconds);
             flow = null;
             action();
-        }
-
-        // ---------- Гараж ----------
-
-        void BuildGarage()
-        {
-            if (garage != null) return;
-            garage = new GameObject("Garage").transform;
-            garage.position = GaragePos;
-
-            Prims.Part("Pedestal", PrimitiveType.Cylinder, garage, new Vector3(0f, -0.05f, 0f), new Vector3(2.6f, 0.05f, 2.6f), Mats.Lit(new Color(0.08f, 0.09f, 0.11f), 0.6f));
-            var ring = Prims.Part("Ring", PrimitiveType.Cylinder, garage, new Vector3(0f, -0.06f, 0f), new Vector3(2.75f, 0.04f, 2.75f), Mats.Unlit(config.echoColor * 0.5f));
-            ring.shadowCastingMode = ShadowCastingMode.Off;
-            Prims.Part("Floor", PrimitiveType.Cube, garage, new Vector3(0f, -0.6f, 0f), new Vector3(40f, 1f, 40f), Mats.Lit(new Color(0.02f, 0.025f, 0.035f), 0.2f));
-
-            var key = new GameObject("KeyLight").AddComponent<Light>();
-            key.transform.SetParent(garage, false);
-            key.transform.localPosition = new Vector3(1.5f, 6f, -2f);
-            key.transform.LookAt(GaragePos);
-            key.type = LightType.Spot;
-            key.spotAngle = 45f;
-            key.range = 15f;
-            key.intensity = 30f;
-            key.color = new Color(1f, 0.92f, 0.8f);
-            key.shadows = LightShadows.Soft;
-
-            var rim = new GameObject("RimLight").AddComponent<Light>();
-            rim.transform.SetParent(garage, false);
-            rim.transform.localPosition = new Vector3(-2.5f, 1.5f, 2.5f);
-            rim.type = LightType.Point;
-            rim.range = 7f;
-            rim.intensity = 4f;
-            rim.color = EchoSystem.Ldr(config.echoColor);
-        }
-
-        void RebuildGarageTank()
-        {
-            if (garage == null) return;
-            float yaw = garageTank != null ? garageTank.transform.eulerAngles.y : 210f;
-            if (garageTank != null) Destroy(garageTank);
-            garageTank = new GameObject("GarageTank");
-            garageTank.transform.SetParent(garage, false);
-            garageTank.transform.rotation = Quaternion.Euler(0f, yaw, 0f);
-            var visual = garageTank.AddComponent<TankVisual>();
-            visual.Build(config.hulls[HullIndex], config.turrets[TurretIndex], Team.Player, false);
-            visual.SetTurretYaw(yaw + 25f);
-            visual.Reveal(0.6f);
         }
     }
 }

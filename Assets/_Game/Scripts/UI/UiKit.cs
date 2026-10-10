@@ -4,28 +4,35 @@ using UnityEngine.UI;
 
 namespace PulyaDura
 {
-    public enum Weight { Regular, Medium, Bold, Black }
+    public enum Weight { Regular, Medium, Bold, Black, Mono }
 
-    /// <summary>Мини-конструктор uGUI: интерфейс собирается кодом, без префабов. Шрифт — Roboto.</summary>
+    /// <summary>
+    /// Мини-конструктор uGUI: интерфейс собирается кодом, без префабов.
+    /// Стиль: тёмные панели со срезанными углами, тонкая рамка, моноширинные цифры, иконки вместо слов.
+    /// </summary>
     public static class UiKit
     {
-        public static readonly Color Panel = new(0.05f, 0.07f, 0.1f, 0.78f);
-        public static readonly Color Line = new(1f, 1f, 1f, 0.08f);
+        public static readonly Color PanelFill = new(0.04f, 0.06f, 0.09f, 0.82f);
+        public static readonly Color Line = new(0.6f, 0.85f, 1f, 0.16f);
         public static readonly Color Accent = new(0.36f, 0.88f, 1f);
-        public static readonly Color AccentDim = new(0.36f, 0.88f, 1f, 0.16f);
+        public static readonly Color AccentDim = new(0.36f, 0.88f, 1f, 0.18f);
         public static readonly Color Danger = new(1f, 0.56f, 0.22f);
         public static readonly Color Enemy = new(1f, 0.32f, 0.28f);
         public static readonly Color TextColor = new(0.92f, 0.95f, 0.98f);
         public static readonly Color Muted = new(0.55f, 0.62f, 0.7f);
         public static readonly Color Faint = new(1f, 1f, 1f, 0.1f);
 
-        static readonly Font[] fonts = new Font[4];
+        static readonly Font[] fonts = new Font[5];
 
         public static Font FontOf(Weight w)
         {
             int i = (int)w;
             if (fonts[i] != null) return fonts[i];
-            string name = w switch { Weight.Black => "Roboto-Black", Weight.Bold => "Roboto-Bold", Weight.Medium => "Roboto-Medium", _ => "Roboto-Regular" };
+            string name = w switch
+            {
+                Weight.Black => "Roboto-Black", Weight.Bold => "Roboto-Bold", Weight.Medium => "Roboto-Medium",
+                Weight.Mono => "RobotoMono-Bold", _ => "Roboto-Regular"
+            };
             fonts[i] = Resources.Load<Font>("Fonts/" + name);
             if (fonts[i] == null) fonts[i] = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
             return fonts[i];
@@ -79,6 +86,28 @@ namespace PulyaDura
         public static Image Box(string name, Transform parent, Vector2 anchor, Vector2 pivot, Vector2 pos, Vector2 size, Color color)
             => Fill(Rect(name, parent, anchor, pivot, pos, size), color);
 
+        /// <summary>Панель со срезанными углами и тонкой рамкой. Рамка — дочерний объект Frame.</summary>
+        public static Image Panel(string name, Transform parent, Vector2 anchor, Vector2 pivot, Vector2 pos, Vector2 size, Color? fill = null, Color? frame = null)
+        {
+            var img = Box(name, parent, anchor, pivot, pos, size, fill ?? PanelFill);
+            img.sprite = Icons.Panel;
+            img.type = Image.Type.Sliced;
+            var f = Fill(Stretch("Frame", img.transform), frame ?? Line);
+            f.sprite = Icons.Frame;
+            f.type = Image.Type.Sliced;
+            return img;
+        }
+
+        public static Image FrameOf(Component panel) => panel.transform.Find("Frame").GetComponent<Image>();
+
+        public static Image Icon(string name, Transform parent, Vector2 anchor, Vector2 pivot, Vector2 pos, float size, IconId id, Color color)
+        {
+            var img = Box(name, parent, anchor, pivot, pos, new Vector2(size, size), color);
+            img.sprite = Icons.Get(id);
+            img.preserveAspect = true;
+            return img;
+        }
+
         public static Text Label(Transform parent, string text, int size, Color color, TextAnchor align, Weight weight = Weight.Regular)
         {
             var t = parent.gameObject.AddComponent<Text>();
@@ -106,23 +135,16 @@ namespace PulyaDura
             s.effectDistance = new Vector2(dist, -dist);
         }
 
-        public static void Border(Graphic g, Color color, float width = 1.5f)
-        {
-            var o = g.gameObject.AddComponent<Outline>();
-            o.effectColor = color;
-            o.effectDistance = new Vector2(width, -width);
-        }
-
+        /// <summary>Кнопка-панель. Если задана иконка, она стоит слева от подписи.</summary>
         public static Button Button(string name, Transform parent, Vector2 anchor, Vector2 pivot, Vector2 pos, Vector2 size,
-            string text, int fontSize, Action onClick, out Text label, Weight weight = Weight.Bold)
+            string text, int fontSize, Action onClick, out Text label, Weight weight = Weight.Bold, IconId? icon = null)
         {
-            var img = Box(name, parent, anchor, pivot, pos, size, Panel);
+            var img = Panel(name, parent, anchor, pivot, pos, size);
             img.raycastTarget = true;
-            Border(img, Line);
             var btn = img.gameObject.AddComponent<Button>();
             var colors = btn.colors;
             colors.normalColor = Color.white;
-            colors.highlightedColor = new Color(1.25f, 1.25f, 1.25f);
+            colors.highlightedColor = new Color(1.35f, 1.35f, 1.35f);
             colors.pressedColor = new Color(0.8f, 0.8f, 0.8f);
             colors.selectedColor = Color.white;
             colors.fadeDuration = 0.06f;
@@ -132,9 +154,18 @@ namespace PulyaDura
                 Sfx.I.Play(SfxId.Click);
                 onClick();
             });
+
             var lt = Stretch("Label", img.transform);
-            lt.offsetMin = new Vector2(10f, 4f);
-            lt.offsetMax = new Vector2(-10f, -4f);
+            lt.offsetMin = new Vector2(10f, 2f);
+            lt.offsetMax = new Vector2(-10f, -2f);
+            if (icon.HasValue)
+            {
+                float s = Mathf.Min(size.y * 0.46f, 30f);
+                Icon("Icon", img.transform, new Vector2(0.5f, 0.66f), new Vector2(0.5f, 0.5f), Vector2.zero, s, icon.Value, TextColor);
+                lt.anchorMax = new Vector2(1f, 0.42f);
+                lt.offsetMin = new Vector2(6f, 4f);
+                lt.offsetMax = new Vector2(-6f, 0f);
+            }
             label = Label(lt, text, fontSize, TextColor, TextAnchor.MiddleCenter, weight);
             label.horizontalOverflow = HorizontalWrapMode.Overflow;
             return btn;
@@ -144,19 +175,15 @@ namespace PulyaDura
         public static Image Bar(string name, Transform parent, Vector2 anchor, Vector2 pivot, Vector2 pos, Vector2 size, Color fill)
         {
             var bg = Box(name, parent, anchor, pivot, pos, size, Faint);
-            var f = Stretch("Fill", bg.transform);
-            var img = Fill(f, fill);
-            img.type = UnityEngine.UI.Image.Type.Filled;
-            img.fillMethod = UnityEngine.UI.Image.FillMethod.Horizontal;
+            var img = Fill(Stretch("Fill", bg.transform), fill);
+            img.type = Image.Type.Filled;
+            img.fillMethod = Image.FillMethod.Horizontal;
             img.sprite = WhiteSprite;
             img.fillAmount = 1f;
             return img;
         }
 
-        /// <summary>
-        /// Строка подсказок управления: клавиша в рамке и короткая подпись.
-        /// Возвращает общую ширину, чтобы строку можно было центрировать.
-        /// </summary>
+        /// <summary>Строка подсказок управления: клавиша в рамке и короткая подпись.</summary>
         public static RectTransform KeyHints(string name, Transform parent, Vector2 anchor, Vector2 pivot, Vector2 pos, (string key, string label)[] items, int size)
         {
             var row = Rect(name, parent, anchor, pivot, pos, new Vector2(10f, size + 18f));
@@ -164,21 +191,24 @@ namespace PulyaDura
             float h = size + 18f;
             foreach (var (key, label) in items)
             {
-                var kt = Text("Key", row, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(400f, h), key, size, TextColor, TextAnchor.MiddleCenter, Weight.Bold);
-                float kw = kt.preferredWidth + 22f;
-                var box = Box("KeyBox", row, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(x, 0f), new Vector2(kw, h), Faint);
-                Border(box, new Color(1f, 1f, 1f, 0.18f), 1f);
+                var kt = Text("Key", row, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), Vector2.zero, new Vector2(400f, h), key, size - 2, TextColor, TextAnchor.MiddleCenter, Weight.Mono);
+                float kw = kt.preferredWidth + 24f;
+                var box = Panel("KeyBox", row, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(x, 0f), new Vector2(kw, h), new Color(1f, 1f, 1f, 0.07f), new Color(1f, 1f, 1f, 0.3f));
                 kt.rectTransform.SetParent(box.transform, false);
                 kt.rectTransform.anchorMin = Vector2.zero;
                 kt.rectTransform.anchorMax = Vector2.one;
                 kt.rectTransform.offsetMin = kt.rectTransform.offsetMax = Vector2.zero;
                 x += kw + 10f;
-                var lt = Text("Label", row, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(x, 0f), new Vector2(400f, h), label, size, Muted, TextAnchor.MiddleLeft, Weight.Medium);
-                float lw = lt.preferredWidth;
-                lt.rectTransform.sizeDelta = new Vector2(lw + 4f, h);
-                x += lw + 34f;
+                if (!string.IsNullOrEmpty(label))
+                {
+                    var lt = Text("Label", row, new Vector2(0f, 0.5f), new Vector2(0f, 0.5f), new Vector2(x, 0f), new Vector2(400f, h), label, size, Muted, TextAnchor.MiddleLeft, Weight.Medium);
+                    float lw = lt.preferredWidth;
+                    lt.rectTransform.sizeDelta = new Vector2(lw + 4f, h);
+                    x += lw;
+                }
+                x += 30f;
             }
-            row.sizeDelta = new Vector2(x - 34f, h);
+            row.sizeDelta = new Vector2(x - 30f, h);
             return row;
         }
 

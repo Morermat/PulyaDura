@@ -127,7 +127,9 @@ namespace PulyaDura
             {
                 var p = pending[i];
                 if (p.time > now) continue;
-                pending.RemoveAt(i);
+                // порядок не важен: меняем с последним и удаляем хвост за O(1)
+                pending[i] = pending[pending.Count - 1];
+                pending.RemoveAt(pending.Count - 1);
                 if (p.collider == null) continue;
 
                 if (p.collider.TryGetComponent<WallBlock>(out var wall))
