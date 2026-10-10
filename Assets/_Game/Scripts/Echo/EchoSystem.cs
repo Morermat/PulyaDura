@@ -34,12 +34,14 @@ namespace PulyaDura
         {
             cfg = config;
             sparks = Fx.CreateParticles("EchoSparks", transform, Mats.Fx(Color.white * 2.2f), 4000, 0.09f);
+            gameObject.AddComponent<EchoGhosts>().Init(cfg);
             pings = Fx.CreateParticles("EchoPings", transform, Mats.Fx(Color.white * 3f), 2000, 0.25f);
         }
 
         public void Clear()
         {
             pending.Clear();
+            EchoGhosts.I.Clear();
             sparks.Clear();
             pings.Clear();
         }
@@ -139,7 +141,8 @@ namespace PulyaDura
                 }
                 else if (p.collider.TryGetComponent<Tank>(out var tank) && !tank.IsDead)
                 {
-                    tank.Visual.Reveal(p.strength);
+                    if (tank.Visual.Hidden) EchoGhosts.I.Snapshot(tank, tank.Visual.Accent, p.strength);
+                    else tank.Visual.Reveal(p.strength);
                 }
             }
         }

@@ -48,6 +48,13 @@ namespace PulyaDura
         float bannerTime, bannerLife;
         Text resultTitle, resultTime, resultKills, resultRicochets, resultExtra, resultRecord;
 
+        // слово во весь экран (распев «ПУЛЯ. ДУРА.»)
+        RectTransform slamRoot;
+        Text slamWord, slamSub;
+        Image slamFlash, slamDim;
+        float slamTime;
+        public bool SlamVisible => slamRoot.gameObject.activeSelf;
+
         class Floater { public Text text; public Vector3 world; public float t; }
         class EdgeMark { public Image img; public Tank target; public Color color; public float t; }
         readonly List<Floater> floaters = new();
@@ -74,6 +81,41 @@ namespace PulyaDura
             BuildPause();
             resultRoot = UiKit.Stretch("Result", canvas);
             BuildResult();
+            slamRoot = UiKit.Stretch("Slam", canvas);
+            BuildSlam();
+        }
+
+        // ---------- Слово во весь экран ----------
+
+        void BuildSlam()
+        {
+            slamDim = UiKit.Fill(slamRoot, new Color(0f, 0f, 0f, 0.55f));
+            slamFlash = UiKit.Fill(UiKit.Stretch("Flash", slamRoot), new Color(1f, 1f, 1f, 0f));
+            slamWord = UiKit.Text("Word", slamRoot, C, C, new Vector2(0f, 30f), new Vector2(1900f, 360f), "", 300, Color.white, TextAnchor.MiddleCenter, Weight.Black);
+            UiKit.Shadow(slamWord, 8f, 0.5f);
+            slamSub = UiKit.Text("Sub", slamRoot, BC, BC, new Vector2(0f, 120f), new Vector2(1400f, 50f), "", 30, UiKit.TextColor, TextAnchor.MiddleCenter, Weight.Mono);
+            slamRoot.gameObject.SetActive(false);
+        }
+
+        /// <summary>Одно слово распева: вспышка, удар масштабом, чередование цвета.</summary>
+        public void Slam(string word, Color color, string subtitle)
+        {
+            slamRoot.gameObject.SetActive(true);
+            bannerRoot.gameObject.SetActive(false);
+            slamWord.text = word;
+            slamWord.color = color;
+            slamSub.text = subtitle;
+            slamTime = Time.unscaledTime;
+        }
+
+        public void EndSlam() => slamRoot.gameObject.SetActive(false);
+
+        void UpdateSlam()
+        {
+            if (!slamRoot.gameObject.activeSelf) return;
+            float t = Time.unscaledTime - slamTime;
+            slamWord.rectTransform.localScale = Vector3.one * (t < 0.07f ? Mathf.Lerp(1.35f, 1f, t / 0.07f) : 1f + Mathf.Max(0f, 0.25f - t) * 0.04f);
+            slamFlash.color = new Color(1f, 1f, 1f, Mathf.Max(0f, 0.35f - t * 2.5f));
         }
 
         void OnEnable() => GameEvents.ShotFired += OnShot;
@@ -188,6 +230,7 @@ namespace PulyaDura
 
         public void ShowGarage()
         {
+            EndSlam();
             garageRoot.gameObject.SetActive(true);
             hudRoot.gameObject.SetActive(false);
             resultRoot.gameObject.SetActive(false);
@@ -562,6 +605,7 @@ namespace PulyaDura
 
         public void ShowResult(bool win, RunStats s, bool record, float bestTime, int bestRooms)
         {
+            EndSlam();
             hudRoot.gameObject.SetActive(false);
             bannerRoot.gameObject.SetActive(false);
             resultRoot.gameObject.SetActive(true);
@@ -586,6 +630,7 @@ namespace PulyaDura
             UpdateBanner();
             UpdateFloaters();
             UpdateEdgeMarks();
+            UpdateSlam();
         }
 
         static void SetAlpha(Graphic g, float a)

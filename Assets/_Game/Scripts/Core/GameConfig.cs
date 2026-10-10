@@ -75,6 +75,10 @@ namespace PulyaDura
         [Tooltip("Множитель дальности слуха")] public float hearing = 1f;
         [Tooltip("Сколько секунд помнит, откуда был звук")] public float memory = 4f;
         public float speedMultiplier = 0.75f;
+        [Tooltip("Видит игрока по свету его фар на этой дистанции (при тихом ходе — вдвое ближе)")] public float sight = 7f;
+        [Tooltip("Стреляет на звук, даже не видя игрока (подавляющий огонь)")] public bool blindFire = true;
+        [Tooltip("Охотник держит эту дистанцию и стрейфит")] public float preferRange = 6f;
+        [Tooltip("Упреждение по движущейся цели: 0 — нет, 1 — полное")] public float lead = 0.8f;
     }
 
     /// <summary>
@@ -217,11 +221,12 @@ namespace PulyaDura
         static List<EnemyConfig> DefaultEnemies() => new()
         {
             new EnemyConfig { symbol = "d", title = "Мишень", accent = new Color(1.2f, 1.2f, 1.2f), hullId = "barsuk", turretId = "cannon", behaviour = EnemyBehaviour.Dummy, hpOverride = 2 },
-            new EnemyConfig { symbol = "t", title = "Турель", accent = new Color(3f, 1.6f, 0.2f), hullId = "begemot", turretId = "cannon", behaviour = EnemyBehaviour.Static, hpOverride = 4, fireInterval = 1.8f, aimError = 5f, turretTurnSpeed = 120f, hearing = 1.3f },
-            new EnemyConfig { symbol = "h", title = "Охотник", accent = new Color(3f, 0.35f, 0.25f), hullId = "strizh", turretId = "plasma", behaviour = EnemyBehaviour.Hunter, fireInterval = 0.9f, aimError = 7f, turretTurnSpeed = 200f, speedMultiplier = 0.7f },
-            new EnemyConfig { symbol = "g", title = "Громила", accent = new Color(1.8f, 0.4f, 3f), hullId = "barsuk", turretId = "shotgun", behaviour = EnemyBehaviour.Hunter, fireInterval = 1.6f, aimError = 4f, turretTurnSpeed = 160f, speedMultiplier = 0.8f },
-            new EnemyConfig { symbol = "s", title = "Снайпер", accent = new Color(0.5f, 3f, 0.6f), hullId = "barsuk", turretId = "cannon", behaviour = EnemyBehaviour.Static, bankShots = true, fireInterval = 2.4f, aimError = 1.5f, turretTurnSpeed = 110f, hearing = 1.7f },
-            new EnemyConfig { symbol = "B", title = "Бегемот", accent = new Color(3f, 0.3f, 1.6f), hullId = "begemot", turretId = "rail", behaviour = EnemyBehaviour.Hunter, hpOverride = 14, bankShots = true, fireInterval = 2.6f, aimError = 2f, turretTurnSpeed = 90f, speedMultiplier = 0.85f, memory = 6f },
+            new EnemyConfig { symbol = "r", title = "Новичок", accent = new Color(2.6f, 2.4f, 0.3f), hullId = "strizh", turretId = "cannon", behaviour = EnemyBehaviour.Static, hpOverride = 2, fireInterval = 3f, aimError = 9f, turretTurnSpeed = 90f, sight = 8f, lead = 0f },
+            new EnemyConfig { symbol = "t", title = "Турель", accent = new Color(3f, 1.6f, 0.2f), hullId = "begemot", turretId = "cannon", behaviour = EnemyBehaviour.Static, hpOverride = 4, fireInterval = 1.8f, aimError = 5f, turretTurnSpeed = 120f, hearing = 1.3f, sight = 9f, lead = 0.5f },
+            new EnemyConfig { symbol = "h", title = "Охотник", accent = new Color(3f, 0.35f, 0.25f), hullId = "strizh", turretId = "plasma", behaviour = EnemyBehaviour.Hunter, fireInterval = 0.9f, aimError = 7f, turretTurnSpeed = 200f, speedMultiplier = 0.7f, preferRange = 6f },
+            new EnemyConfig { symbol = "g", title = "Громила", accent = new Color(1.8f, 0.4f, 3f), hullId = "barsuk", turretId = "shotgun", behaviour = EnemyBehaviour.Hunter, fireInterval = 1.6f, aimError = 4f, turretTurnSpeed = 160f, speedMultiplier = 0.8f, preferRange = 3.5f, sight = 6f },
+            new EnemyConfig { symbol = "s", title = "Снайпер", accent = new Color(0.5f, 3f, 0.6f), hullId = "barsuk", turretId = "cannon", behaviour = EnemyBehaviour.Static, bankShots = true, fireInterval = 2.4f, aimError = 1.5f, turretTurnSpeed = 110f, hearing = 1.7f, sight = 12f, blindFire = false, lead = 1f },
+            new EnemyConfig { symbol = "B", title = "Бегемот", accent = new Color(3f, 0.3f, 1.6f), hullId = "begemot", turretId = "rail", behaviour = EnemyBehaviour.Hunter, hpOverride = 14, bankShots = true, fireInterval = 2.6f, aimError = 2f, turretTurnSpeed = 90f, speedMultiplier = 0.85f, memory = 6f, preferRange = 7f, sight = 9f },
         };
     }
 }

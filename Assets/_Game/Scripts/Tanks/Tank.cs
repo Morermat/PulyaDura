@@ -23,6 +23,8 @@ namespace PulyaDura
         public TankVisual Visual { get; private set; }
         public TankWeapon Weapon { get; private set; }
         public TankAbility Ability { get; private set; }
+        public PlayerController Controller { get; private set; }
+        public EnemyBrain Brain { get; private set; }
         public Rigidbody Body { get; private set; }
         public BoxCollider Collider { get; private set; }
 
@@ -72,7 +74,8 @@ namespace PulyaDura
 
             Visual = gameObject.AddComponent<TankVisual>();
             Visual.Build(hull, turret, team, enemy, team == Team.Player);
-            Visual.ShowHealthBar = team == Team.Enemy;
+            // Враги невидимы: их выдают только «призраки» эха, след и вспышки выстрелов
+            Visual.Hidden = team == Team.Enemy;
 
             Weapon = gameObject.AddComponent<TankWeapon>();
             Weapon.Init(this);
@@ -81,11 +84,13 @@ namespace PulyaDura
             {
                 Ability = gameObject.AddComponent<TankAbility>();
                 Ability.Init(this);
-                gameObject.AddComponent<PlayerController>().Init(this);
+                Controller = gameObject.AddComponent<PlayerController>();
+                Controller.Init(this);
             }
             else
             {
-                gameObject.AddComponent<EnemyBrain>().Init(this);
+                Brain = gameObject.AddComponent<EnemyBrain>();
+                Brain.Init(this);
             }
         }
 
@@ -97,7 +102,8 @@ namespace PulyaDura
             if (IsDead || Invulnerable) return;
             Hp = Mathf.Max(0, Hp - info.amount);
             Visual.Flash();
-            Visual.Reveal(1f);
+            if (Visual.Hidden) EchoGhosts.I.Snapshot(this, Color.white, 1f);
+            else Visual.Reveal(1f);
             Visual.SetHealth((float)Hp / MaxHp);
             GameEvents.RaiseDamaged(this, info);
             if (Hp == 0) Die(info);

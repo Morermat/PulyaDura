@@ -28,7 +28,8 @@ namespace PulyaDura
 
         public List<Override> overrides = new();
         [Range(0f, 1f)] public float volume = 0.8f;
-        [Range(0f, 1f)] public float ambienceVolume = 0.35f;
+        [Tooltip("Гул окружения. 0 — выключен (по умолчанию играет музыка MusicDirector)")]
+        [Range(0f, 1f)] public float ambienceVolume = 0f;
 
         const int SampleRate = 44100;
         readonly Dictionary<SfxId, AudioClip> clips = new();
@@ -48,11 +49,14 @@ namespace PulyaDura
                 src.spatialBlend = 0f;
                 voices.Add(src);
             }
-            ambience = gameObject.AddComponent<AudioSource>();
-            ambience.clip = Drone();
-            ambience.loop = true;
-            ambience.volume = ambienceVolume;
-            ambience.Play();
+            if (ambienceVolume > 0f)
+            {
+                ambience = gameObject.AddComponent<AudioSource>();
+                ambience.clip = Drone();
+                ambience.loop = true;
+                ambience.volume = ambienceVolume;
+                ambience.Play();
+            }
         }
 
         public void Play(SfxId id, Vector3? at = null, float vol = 1f, float pitch = 1f)

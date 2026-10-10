@@ -14,8 +14,28 @@ namespace PulyaDura
         public Transform TurretPivot { get; private set; }
         public Transform Muzzle { get; private set; }
         public bool ShowHealthBar { get; set; }
+        public Color Accent => accent;
+
+        /// <summary>
+        /// Скрытый танк (враг) не рисуется. Видно только сенсор перед выстрелом,
+        /// а эхо рисует на его месте «призрака» (EchoGhosts).
+        /// </summary>
+        public bool Hidden
+        {
+            get => hidden;
+            set
+            {
+                hidden = value;
+                foreach (var r in litParts) r.enabled = !value;
+                foreach (var r in glowParts) r.enabled = !value;
+                trackL.enabled = trackR.enabled = !value;
+                sensor.enabled = !value;
+            }
+        }
 
         readonly List<MeshRenderer> litParts = new();
+        readonly List<MeshRenderer> glowParts = new();
+        bool hidden;
         MeshRenderer trackL, trackR;
         MeshRenderer sensor;
         Transform barrels, mirrorBubble, barRoot, barFill;
@@ -236,6 +256,7 @@ namespace PulyaDura
 
             // Сенсор на башне: разгорается перед выстрелом врага
             sensor = Glow("Sensor", PrimitiveType.Cube, TurretPivot, new Vector3(0f, 0.24f, ts * 0.12f), new Vector3(0.16f, 0.03f, 0.05f), accent);
+            glowParts.Remove(sensor);
         }
 
         // ---------- Служебное: маркер, свет, пузырь зеркала, полоска здоровья ----------
@@ -316,6 +337,7 @@ namespace PulyaDura
         {
             var r = Prims.Part(name, type, parent, pos, scale, Mats.Unlit(hdr), rot);
             r.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            glowParts.Add(r);
             return r;
         }
 
@@ -396,6 +418,8 @@ namespace PulyaDura
                 trackR.SetPropertyBlock(trackMpb);
             }
 
+            // Скрытый враг выдаёт себя только сенсором за миг до выстрела
+            if (hidden) sensor.enabled = tell > 0.05f;
             if (tell != lastTell)
             {
                 lastTell = tell;
@@ -461,6 +485,20 @@ namespace PulyaDura
             barFill.localPosition = new Vector3((health - 1f) * 0.5f, 0f, -0.01f);
         }
 
+        /// <summary>Сетки и мировые матрицы деталей: из них рисуется «призрак» эха.</summary>
+        public void CollectGhostParts(List<(Mesh mesh, Matrix4x4 matrix)> parts)
+        {
+            foreach (var r in litParts) Add(r);
+            Add(trackL);
+            Add(trackR);
+
+            void Add(MeshRenderer r)
+            {
+                var mf = r.GetComponent<MeshFilter>();
+                if (mf != null && mf.sharedMesh != null) parts.Add((mf.sharedMesh, r.transform.localToWorldMatrix));
+            }
+        }
+
         /// <summary>Разлёт деталей: каждая получает физику и тлеет несколько секунд.</summary>
         public void Explode(Vector3 hitDir)
         {
@@ -470,6 +508,7 @@ namespace PulyaDura
             foreach (var r in parts)
             {
                 if (r == null) continue;
+                r.enabled = true; // смерть врага видна всегда
                 var t = r.transform;
                 t.SetParent(null, true);
                 t.gameObject.layer = Layers.Debris;

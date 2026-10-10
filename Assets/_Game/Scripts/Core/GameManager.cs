@@ -68,6 +68,8 @@ namespace PulyaDura
 
             gameObject.AddComponent<TimeController>();
             if (GetComponent<Sfx>() == null) gameObject.AddComponent<Sfx>();
+            if (GetComponent<MusicDirector>() == null) gameObject.AddComponent<MusicDirector>();
+            if (GetComponent<Announcer>() == null) gameObject.AddComponent<Announcer>();
             gameObject.AddComponent<Fx>().Init();
             new GameObject("PostFX").AddComponent<PostFx>();
             new GameObject("Echo").AddComponent<EchoSystem>().Init(config);
@@ -136,6 +138,8 @@ namespace PulyaDura
             ProjectileSystem.I.ClearAll();
             EchoSystem.I.Clear();
             Fx.I.Clear();
+            Announcer.I.Stop();
+            ui.EndSlam();
             ui.ShowPause(false);
         }
 
@@ -308,6 +312,8 @@ namespace PulyaDura
             State = GameState.Dead;
             bool self = d.source != null && d.source == Player;
             ui.Banner(self ? "ПУЛЯ — ДУРА" : "ПОДБИТ", Lives > 0 ? $"Осталось жизней: {Lives}" : "Жизни кончились", UiKit.Danger);
+            // Убил сам себя — голос медленно и с издёвкой произносит название игры
+            if (self) Announcer.I.Chant(2, slam: false, pitch: 0.85f);
             Sfx.I.Play(SfxId.Death);
             TimeController.I.SlowMo(0.25f, 0.8f);
             flow = StartCoroutine(After(1.7f, () =>
@@ -325,9 +331,11 @@ namespace PulyaDura
             TimeController.I.SlowMo(0.3f, 0.9f);
             Sfx.I.Play(SfxId.RoomClear);
             bool last = RoomIndex + 1 >= rooms.Count;
-            ui.Banner("КОМНАТА ЧИСТА", last ? "Это была последняя!" : $"Дальше: {rooms[RoomIndex + 1].title}", UiKit.Accent);
             if (Player != null) EchoSystem.I.RevealAll(Player.transform.position, 0.9f);
-            flow = StartCoroutine(After(1.9f, () =>
+            // Распев в такт музыке, как в концовке SUPERHOT: после последней комнаты — длиннее
+            string next = last ? "ВСЕ КОМНАТЫ ЧИСТЫ" : $"ДАЛЬШЕ: {rooms[RoomIndex + 1].title.ToUpper()}";
+            float chant = Announcer.I.Chant(last ? 6 : 4, subtitle: next);
+            flow = StartCoroutine(After(chant + 0.25f, () =>
             {
                 if (!last) LoadRoom(RoomIndex + 1);
                 else ShowResult(true);

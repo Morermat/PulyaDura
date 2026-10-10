@@ -124,6 +124,8 @@ namespace PulyaDura.EditorTools
 
             var game = new GameObject("Game");
             game.AddComponent<Sfx>();
+            game.AddComponent<MusicDirector>();
+            game.AddComponent<Announcer>();
             game.AddComponent<GameManager>().config = config;
 
             EditorSceneManager.SaveScene(scene, ScenePath);

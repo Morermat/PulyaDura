@@ -202,6 +202,35 @@ namespace PulyaDura
             yield return Wait(0.3f);
             Check("R перезапускает забег", gm.State == GameState.Playing && gm.RoomIndex == 0 && gm.Lives == GameManager.Cfg.lives);
 
+            Check("Музыка играет", MusicDirector.I != null && MusicDirector.I.IsPlaying);
+
+            // 9б. Враги невидимы, эхо оставляет «призрака» на месте врага
+            gm.DebugLoadRoom(0);
+            yield return Wait(2.5f);
+            Tank anyEnemy = null;
+            foreach (var t in Tank.All) if (t.Team == Team.Enemy) { anyEnemy = t; break; }
+            bool allHidden = true;
+            foreach (var r in anyEnemy.GetComponentsInChildren<MeshRenderer>())
+                if (r.enabled && r.name != "Sensor") allHidden = false;
+            Check("Враги невидимы (видны только следы эха)", allHidden);
+            float emitTime = Time.time;
+            EchoSystem.I.Emit(anyEnemy.transform.position + Vector3.right * 2f, 4f, GameManager.Cfg.echoColor);
+            yield return Wait(0.4f);
+            Check("Эхо оставляет призрака врага", EchoGhosts.I.LastSnapshotOf(anyEnemy) >= emitTime && EchoGhosts.I.Count > 0, $"призраков на экране {EchoGhosts.I.Count}");
+            Shot("05b_ghost");
+
+            // 9в. Новичок в первой комнате видит фары игрока и стреляет
+            p = gm.Player;
+            p.GetComponent<PlayerController>().enabled = false;
+            p.Invulnerable = true;
+            p.Body.position = CellToWorld(12, 10, 21, 13);
+            p.transform.position = p.Body.position;
+            enemyShots = 0;
+            yield return Wait(4f);
+            Check("Новичок в комнате 1 стреляет, когда видит игрока", enemyShots > 0, $"выстрелов врагов {enemyShots}");
+            Check("Музыка переходит в боевой слой", MusicDirector.I.Intensity > 0.5f, $"intensity={MusicDirector.I.Intensity:F2}");
+            p.Invulnerable = false;
+
             // 10. ИИ охотников едет на звук (комната 4)
             gm.DebugLoadRoom(3);
             yield return Wait(2.6f);
@@ -216,7 +245,8 @@ namespace PulyaDura
                 Fire(p, Prims.Flat(hunter.transform.position - p.transform.position));
                 yield return Wait(3f);
                 float d1 = hunter != null ? Vector3.Distance(hunter.transform.position, p.transform.position) : 0f;
-                Check("Охотник реагирует на выстрел (едет или стреляет)", hunter == null || d1 < d0 - 1f || enemyShots > 0, $"dist {d0:F1} → {d1:F1}, выстрелов врагов {enemyShots}");
+                bool alerted = hunter != null && hunter.Brain.Alerted;
+                Check("Охотник услышал выстрел и вступил в бой", hunter == null || alerted, $"тревога={alerted}, dist {d0:F1} → {d1:F1}, выстрелов врагов {enemyShots}");
                 p.Invulnerable = false;
                 Shot("06_hunters");
             }
@@ -266,7 +296,9 @@ namespace PulyaDura
             p.GetComponent<PlayerController>().enabled = false;
             p.Invulnerable = true;
             Tank dummyOwner = null;
-            foreach (var t in Tank.All) if (t.Team == Team.Enemy) { dummyOwner = t; break; }
+            foreach (var t in Tank.All) if (t.Team == Team.Enemy && t.Enemy.behaviour == EnemyBehaviour.Dummy) { dummyOwner = t; break; }
+            KillEnemiesExcept(dummyOwner);
+            yield return Wait(0.2f);
             var cannon = GameManager.Cfg.Turret("cannon");
             ProjectileSystem.I.Spawn(p, cannon, CellToWorld(4, 10, 21, 13) + Vector3.up * Ricochet.ShotHeight, Vector3.right, 0f);
             ProjectileSystem.I.Spawn(dummyOwner, cannon, CellToWorld(16, 10, 21, 13) + Vector3.up * Ricochet.ShotHeight, Vector3.left, 0f);
@@ -308,7 +340,14 @@ namespace PulyaDura
                 if (gm.State != GameState.Playing) yield return Wait(1f);
                 int before = gm.RoomIndex;
                 KillEnemies();
-                yield return Wait(2.6f);
+                if (room == 0)
+                {
+                    yield return Wait(1.2f);
+                    Check("Зачистка: распев «ПУЛЯ. ДУРА.» во весь экран", gm.UI.SlamVisible && Announcer.I.WordsSpoken > 0, $"слов {Announcer.I.WordsSpoken}");
+                    Shot("07d_chant");
+                    yield return Wait(2.8f);
+                }
+                else yield return Wait(room == gm.RoomCount - 1 ? 5.5f : 4f); // после последней комнаты распев длиннее
                 if (room < gm.RoomCount - 1)
                     Check($"Комната {before + 1} → {before + 2}", gm.RoomIndex == before + 1 && gm.State == GameState.Playing, $"room={gm.RoomIndex} state={gm.State}");
             }
