@@ -33,8 +33,8 @@ namespace PulyaDura
         static readonly (char need, string text)[] Tips =
         {
             ('.', "Отскок подсвечивает стены"), ('.', "Shift — тихий ход"), ('.', "Своя пуля после отскока бьёт и тебя"),
-            ('y', "Жёлтый ящик — бонус"), ('x', "Бочка взрывается от пули"), ('1', "Портал переносит и пули"),
-            ('n', "Сирена зовёт врагов к себе"), ('q', "Щит спереди — бей в бок"), ('s', "Снайпер бьёт через отскок"),
+            ('y', "Белый ящик — бонус"), ('x', "Бочка взрывается от пули"), ('1', "Портал переносит и пули"),
+            ('n', "Сирена зовёт врагов к себе"), ('=', "Решётка пропускает пули, но не танки"), ('q', "Щит спереди — бей в бок"), ('s', "Снайпер бьёт через отскок"),
         };
 
         // Враги: символ, с какой глубины, стоимость
@@ -44,6 +44,9 @@ namespace PulyaDura
         };
 
         static Vector2Int V(int x, int y) => new(x, y);
+
+        /// <summary>Мешает проехать: стена или решётка.</summary>
+        static bool Solid(char ch) => ch == '#' || ch == '=';
 
         /// <summary>Комната на глубине depth (с 1). Одинаковые seed и depth дают одинаковую комнату.</summary>
         public static RoomData Generate(int depth, int seed)
@@ -85,6 +88,28 @@ namespace PulyaDura
                     continue;
                 }
                 placed += stamp.Length;
+            }
+
+            // Решётки: прямые отрезки, через которые можно стрелять, но нельзя проехать
+            if (depth >= 2)
+            {
+                int fences = 1 + rng.Next(Mathf.Min(3, depth / 3 + 1));
+                for (int tries = 0, done = 0; tries < 120 && done < fences; tries++)
+                {
+                    int length = 2 + rng.Next(3);
+                    bool vertical = rng.Next(2) == 0;
+                    var line = new Vector2Int[length];
+                    for (int i = 0; i < length; i++) line[i] = vertical ? V(0, i) : V(i, 0);
+                    int ox = rng.Next(1, w - 1), oy = rng.Next(1, h - 1);
+                    if (!CanPlace(g, w, h, line, ox, oy)) continue;
+                    foreach (var c in line) g[ox + c.x, oy + c.y] = '=';
+                    if (HasPinch(g, w, h))
+                    {
+                        foreach (var c in line) g[ox + c.x, oy + c.y] = '.';
+                        continue;
+                    }
+                    done++;
+                }
             }
 
             // 2. Старт игрока: левая четверть, вокруг пусто
@@ -260,7 +285,7 @@ namespace PulyaDura
                     {
                         int nx = x + dx, ny = y + dy;
                         if (nx <= 0 || ny <= 0 || nx >= w - 1 || ny >= h - 1) continue;
-                        if (g[nx, ny] == '#') return false; // до других препятствий не меньше двух клеток
+                        if (Solid(g[nx, ny])) return false; // до других препятствий не меньше двух клеток
                     }
             }
             return true;
@@ -269,7 +294,7 @@ namespace PulyaDura
         /// <summary>Щель в одну клетку: две стены через клетку, которые не соединены стеной поблизости.</summary>
         public static bool HasPinch(char[,] g, int w, int h)
         {
-            bool Wall(int x, int y) => x >= 0 && y >= 0 && x < w && y < h && g[x, y] == '#';
+            bool Wall(int x, int y) => x >= 0 && y >= 0 && x < w && y < h && Solid(g[x, y]);
             var seen = new HashSet<Vector2Int>();
             var stack = new Stack<Vector2Int>();
             for (int ax = 0; ax < w; ax++)
@@ -312,7 +337,7 @@ namespace PulyaDura
                 for (int dy = -r; dy <= r; dy++)
                 {
                     int nx = x + dx, ny = y + dy;
-                    if (nx < 0 || ny < 0 || nx >= w || ny >= h || g[nx, ny] == '#') return false;
+                    if (nx < 0 || ny < 0 || nx >= w || ny >= h || Solid(g[nx, ny])) return false;
                 }
             return true;
         }
@@ -329,7 +354,7 @@ namespace PulyaDura
                 foreach (var d in new[] { V(1, 0), V(-1, 0), V(0, 1), V(0, -1) })
                 {
                     var n = c + d;
-                    if (n.x < 0 || n.y < 0 || n.x >= w || n.y >= h || seen[n.x, n.y] || g[n.x, n.y] == '#') continue;
+                    if (n.x < 0 || n.y < 0 || n.x >= w || n.y >= h || seen[n.x, n.y] || Solid(g[n.x, n.y])) continue;
                     seen[n.x, n.y] = true;
                     queue.Enqueue(n);
                 }

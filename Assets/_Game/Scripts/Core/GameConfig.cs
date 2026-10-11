@@ -46,6 +46,8 @@ namespace PulyaDura
         public int bounces = 2;
         public float range = 40f;
         [Tooltip("Только для рельсы: задержка перед выстрелом")] public float chargeTime;
+        [Tooltip("Выстрелов в очереди (у игрока); 1 — одиночные")] public int burst = 1;
+        [Tooltip("Пауза между выстрелами очереди")] public float burstInterval = 0.09f;
         [Tooltip("Радиус эхо-волны при отскоке")] public float echoRadius = 6f;
         [Tooltip("Как далеко враги слышат выстрел")] public float noiseRadius = 14f;
         [Header("Внешний вид")]
@@ -142,7 +144,7 @@ namespace PulyaDura
         [Tooltip("Яркость пули растёт с каждым отскоком")] public float glowGrowthPerBounce = 0.45f;
 
         [Header("Свет")]
-        public Color playerLightColor = new(1f, 0.9f, 0.78f);
+        public Color playerLightColor = new(0.95f, 0.97f, 1f);
         public float playerLightRange = 6.5f;
         public float playerLightIntensity = 3.2f;
         public Color ambient = new(0.025f, 0.03f, 0.045f);
@@ -151,14 +153,14 @@ namespace PulyaDura
         public Color floorColor = new(0.07f, 0.075f, 0.09f);
         [ColorUsage(false, true)] public Color floorGridGlow = new(0.004f, 0.007f, 0.012f);
         public Color wallColor = new(0.08f, 0.085f, 0.1f);
-        public Color crateColor = new(0.17f, 0.11f, 0.06f);
+        public Color crateColor = new(0.12f, 0.12f, 0.14f);
         [ColorUsage(false, true)] public Color echoColor = new(0.25f, 0.85f, 1.5f);
         [ColorUsage(false, true)] public Color enemyEchoColor = new(1.5f, 0.22f, 0.3f);
-        [ColorUsage(false, true)] public Color tempWallColor = new(1.6f, 0.9f, 0.2f);
+        [ColorUsage(false, true)] public Color tempWallColor = new(0.4f, 1.2f, 3f);
 
         [Header("Цвета танков")]
-        public Color playerBody = new(0.16f, 0.4f, 0.36f);
-        [ColorUsage(false, true)] public Color playerAccent = new(0.3f, 2.4f, 1.7f);
+        public Color playerBody = new(0.12f, 0.26f, 0.4f);
+        [ColorUsage(false, true)] public Color playerAccent = new(0.35f, 1.5f, 3f);
         public Color enemyBody = new(0.3f, 0.11f, 0.1f);
         [ColorUsage(false, true)] public Color enemyAccent = new(3f, 0.35f, 0.2f);
         [ColorUsage(false, true)] public Color enemyReveal = new(1.4f, 0.16f, 0.1f);
@@ -167,7 +169,7 @@ namespace PulyaDura
         [Header("Цвета снарядов")]
         [ColorUsage(false, true)] public Color bulletPlayer = new(0.45f, 2.2f, 3f);
         [Tooltip("Пуля игрока после отскока: теперь бьёт и его")]
-        [ColorUsage(false, true)] public Color bulletDanger = new(3f, 1.2f, 0.2f);
+        [ColorUsage(false, true)] public Color bulletDanger = new(3f, 0.45f, 0.75f);
         [ColorUsage(false, true)] public Color bulletEnemy = new(3f, 0.3f, 0.25f);
 
         public HullConfig Hull(string id) => hulls.Find(h => h.id == id) ?? hulls[0];
@@ -213,8 +215,8 @@ namespace PulyaDura
             },
             new TurretConfig
             {
-                id = "plasma", title = "Плазма", style = TurretStyle.Plasma, description = "очередь · 3 отскока",
-                mode = FireMode.Projectile, damage = 1, reload = 0.17f, projectileSpeed = 11f, projectileRadius = 0.1f,
+                id = "plasma", title = "Плазма", style = TurretStyle.Plasma, description = "очередь из 3 · 3 отскока",
+                mode = FireMode.Projectile, damage = 1, reload = 0.62f, burst = 3, burstInterval = 0.09f, projectileSpeed = 11f, projectileRadius = 0.1f,
                 bounces = 3, range = 30f, echoRadius = 3.2f, noiseRadius = 9f,
                 barrels = 2, barrelLength = 0.7f, barrelWidth = 0.09f, barrelSpacing = 0.18f, turretSize = 0.58f
             },
@@ -227,9 +229,9 @@ namespace PulyaDura
             },
             new TurretConfig
             {
-                id = "rail", title = "Рельса", style = TurretStyle.Rail, description = "заряд · луч насквозь",
-                mode = FireMode.Rail, damage = 4, reload = 1.8f, chargeTime = 0.5f, projectileRadius = 0.12f,
-                bounces = 3, range = 40f, echoRadius = 5f, noiseRadius = 18f,
+                id = "rail", title = "Рельса", style = TurretStyle.Rail, description = "заряд · луч насквозь, ломает ящики",
+                mode = FireMode.Rail, damage = 3, reload = 2.4f, chargeTime = 0.7f, projectileRadius = 0.12f,
+                bounces = 2, range = 32f, echoRadius = 7f, noiseRadius = 22f,
                 barrels = 2, barrelLength = 1.05f, barrelWidth = 0.07f, barrelSpacing = 0.12f, turretSize = 0.6f
             },
         };
@@ -237,13 +239,13 @@ namespace PulyaDura
         static List<EnemyConfig> DefaultEnemies() => new()
         {
             new EnemyConfig { symbol = "d", title = "Мишень", accent = new Color(2.2f, 0.6f, 0.5f), hullId = "barsuk", turretId = "cannon", behaviour = EnemyBehaviour.Dummy, hpOverride = 2 },
-            new EnemyConfig { symbol = "r", title = "Новичок", accent = new Color(3f, 1.0f, 0.3f), hullId = "strizh", turretId = "cannon", behaviour = EnemyBehaviour.Static, hpOverride = 2, damageOverride = 1, fireInterval = 3f, aimError = 9f, turretTurnSpeed = 90f, sight = 8f, lead = 0f },
-            new EnemyConfig { symbol = "t", title = "Турель", accent = new Color(3f, 1.6f, 0.2f), hullId = "begemot", turretId = "cannon", behaviour = EnemyBehaviour.Static, hpOverride = 4, damageOverride = 1, fireInterval = 1.8f, aimError = 5f, turretTurnSpeed = 120f, hearing = 1.3f, sight = 9f, lead = 0.5f },
+            new EnemyConfig { symbol = "r", title = "Новичок", accent = new Color(3f, 0.6f, 0.35f), hullId = "strizh", turretId = "cannon", behaviour = EnemyBehaviour.Static, hpOverride = 2, damageOverride = 1, fireInterval = 3f, aimError = 9f, turretTurnSpeed = 90f, sight = 8f, lead = 0f },
+            new EnemyConfig { symbol = "t", title = "Турель", accent = new Color(3f, 0.75f, 0.3f), hullId = "begemot", turretId = "cannon", behaviour = EnemyBehaviour.Static, hpOverride = 4, damageOverride = 1, fireInterval = 1.8f, aimError = 5f, turretTurnSpeed = 120f, hearing = 1.3f, sight = 9f, lead = 0.5f },
             new EnemyConfig { symbol = "h", title = "Охотник", accent = new Color(3f, 0.35f, 0.25f), hullId = "strizh", turretId = "plasma", behaviour = EnemyBehaviour.Hunter, fireInterval = 0.9f, aimError = 7f, turretTurnSpeed = 200f, speedMultiplier = 0.7f, preferRange = 6f },
-            new EnemyConfig { symbol = "g", title = "Громила", accent = new Color(1.8f, 0.4f, 3f), hullId = "barsuk", turretId = "shotgun", behaviour = EnemyBehaviour.Hunter, fireInterval = 1.6f, aimError = 4f, turretTurnSpeed = 160f, speedMultiplier = 0.8f, preferRange = 3.5f, sight = 6f },
+            new EnemyConfig { symbol = "g", title = "Громила", accent = new Color(3f, 0.3f, 0.7f), hullId = "barsuk", turretId = "shotgun", behaviour = EnemyBehaviour.Hunter, fireInterval = 1.6f, aimError = 4f, turretTurnSpeed = 160f, speedMultiplier = 0.8f, preferRange = 3.5f, sight = 6f },
             new EnemyConfig { symbol = "s", title = "Снайпер", accent = new Color(3f, 0.25f, 0.9f), hullId = "barsuk", turretId = "cannon", behaviour = EnemyBehaviour.Static, bankShots = true, fireInterval = 2.4f, aimError = 1.5f, turretTurnSpeed = 110f, hearing = 1.7f, sight = 12f, blindFire = false, lead = 1f },
             new EnemyConfig { symbol = "q", title = "Щитоносец", accent = new Color(2.6f, 0.5f, 1.4f), hullId = "barsuk", turretId = "cannon", behaviour = EnemyBehaviour.Hunter, hpOverride = 5, frontShield = true, fireInterval = 1.9f, aimError = 4f, turretTurnSpeed = 130f, speedMultiplier = 0.7f, preferRange = 5f, sight = 8f },
-            new EnemyConfig { symbol = "B", title = "Мамонт", accent = new Color(3f, 0.3f, 1.6f), hullId = "begemot", turretId = "rail", behaviour = EnemyBehaviour.Hunter, hpOverride = 14, bankShots = true, fireInterval = 2.6f, aimError = 2f, turretTurnSpeed = 90f, speedMultiplier = 0.85f, memory = 6f, preferRange = 7f, sight = 9f },
+            new EnemyConfig { symbol = "B", title = "Мамонт", accent = new Color(3f, 0.2f, 0.5f), hullId = "begemot", turretId = "rail", behaviour = EnemyBehaviour.Hunter, hpOverride = 14, bankShots = true, fireInterval = 2.6f, aimError = 2f, turretTurnSpeed = 90f, speedMultiplier = 0.85f, memory = 6f, preferRange = 7f, sight = 9f },
         };
     }
 }

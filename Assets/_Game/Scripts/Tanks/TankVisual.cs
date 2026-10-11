@@ -188,7 +188,7 @@ namespace PulyaDura
                     for (int s = -1; s <= 1; s += 2)
                     {
                         Lit("Exhaust", PrimitiveType.Cylinder, HullRoot, new Vector3(s * w * 0.22f, y0 + h * 0.75f, -l * 0.5f - 0.02f), new Vector3(0.1f, 0.06f, 0.1f), cfg.trackColor * 2f, Quaternion.Euler(90f, 0f, 0f));
-                        Glow("Heat", PrimitiveType.Cylinder, HullRoot, new Vector3(s * w * 0.22f, y0 + h * 0.75f, -l * 0.5f - 0.08f), new Vector3(0.07f, 0.005f, 0.07f), new Color(2.4f, 0.8f, 0.15f), Quaternion.Euler(90f, 0f, 0f));
+                        Glow("Heat", PrimitiveType.Cylinder, HullRoot, new Vector3(s * w * 0.22f, y0 + h * 0.75f, -l * 0.5f - 0.08f), new Vector3(0.07f, 0.005f, 0.07f), new Color(2.4f, 0.3f, 0.2f), Quaternion.Euler(90f, 0f, 0f));
                     }
                     // Моторный отсек сзади ломает «плиту» и делает силуэт тяжёлым
                     Lit("Engine", PrimitiveType.Cube, HullRoot, new Vector3(0f, y0 + h + 0.07f, -l * 0.3f), new Vector3(w * 0.62f, 0.14f, l * 0.3f), body * 0.75f);

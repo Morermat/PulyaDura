@@ -46,11 +46,12 @@ namespace PulyaDura
             pings.Clear();
         }
 
-        /// <summary>Волна эха из точки. strength 0..1 — насколько ярко вспыхнут стены.</summary>
-        public void Emit(Vector3 origin, float radius, Color color, float strength = 1f)
+        /// <summary>Волна эха из точки. strength 0..1 — насколько ярко вспыхнут стены.
+        /// ring = false — только подсветка стен, без кольца и искр (дёшево: для луча рельсы).</summary>
+        public void Emit(Vector3 origin, float radius, Color color, float strength = 1f, bool ring = true)
         {
             origin.y = Ricochet.ShotHeight;
-            int rays = Mathf.Clamp(Mathf.RoundToInt(radius * 9f), 24, 72);
+            int rays = ring ? Mathf.Clamp(Mathf.RoundToInt(radius * 9f), 24, 72) : 20;
             float speed = cfg.waveSpeed;
             var dists = new float[rays];
 
@@ -75,7 +76,7 @@ namespace PulyaDura
                 }
                 dists[i] = d;
 
-                if (i % 2 == 0)
+                if (ring && i % 2 == 0)
                 {
                     var ep = new ParticleSystem.EmitParams
                     {
@@ -89,6 +90,7 @@ namespace PulyaDura
                 }
             }
 
+            if (!ring) return;
             var wave = wavePool.Count > 0 ? wavePool.Pop() : CreateWave();
             wave.Play(origin, dists, radius, speed, color);
         }

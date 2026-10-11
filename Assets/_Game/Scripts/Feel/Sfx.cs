@@ -125,7 +125,33 @@ namespace PulyaDura
             return Mathf.Abs(k) < 1e-4f ? f0 * t : f0 * (Mathf.Exp(k * t) - 1f) / k;
         }
 
-        static readonly float[] PickupNotes = { 587.33f, 698.46f, 880f, 1174.66f };
+        static readonly float[] PickupNotes = { 440f, 523.25f, 659.25f, 880f };
+
+        /// <summary>
+        /// Лестница тонов: ля-минорная пентатоника, как у трека забега. Каждый выстрел игрока — ступень выше,
+        /// отскоки его пули продолжают подъём. Пауза 1.6 с — лестница сначала. Дойдя до верха,
+        /// лестница сворачивает на октаву вниз и снова растёт, поэтому длинная перестрелка звучит как мелодия.
+        /// </summary>
+        public static readonly int[] Ladder = { 0, 3, 5, 7, 10, 12, 15, 17, 19, 22, 24, 27 };
+        const int LadderTop = 8;
+        int ladderStep = -1;
+        float ladderTime = -10f;
+
+        public int AdvanceLadder()
+        {
+            if (Time.time - ladderTime > 1.6f) ladderStep = -1;
+            ladderTime = Time.time;
+            ladderStep++;
+            return LadderIndex(ladderStep);
+        }
+
+        /// <summary>Сколько ступеней подряд пройдено (для автотеста).</summary>
+        public int LadderSteps => ladderStep + 1;
+
+        static int LadderIndex(int step) => step < LadderTop ? step : 3 + (step - 3) % (LadderTop - 3);
+
+        /// <summary>Множитель высоты для ступени (0 — ля первой октавы).</summary>
+        public static float LadderPitch(int index) => Mathf.Pow(2f, Ladder[Mathf.Clamp(index, 0, Ladder.Length - 1)] / 12f);
 
         void Generate()
         {
@@ -158,11 +184,11 @@ namespace PulyaDura
                 lp += (Noise() - lp) * 0.5f;
                 return lp * Mathf.Exp(-t * 7f) * 0.7f + Sin(Sweep(t, 2600f, 180f, 0.7f)) * Mathf.Exp(-t * 5f) * 0.5f;
             });
-            // Маримба на «ре» (587 Гц): основной тон + деревянный 4-й обертон, который гаснет быстрее.
-            // Высоту каждого отскока задаёт ProjectileSystem.BouncePitch — получается гамма.
+            // Маримба на «ля» (440 Гц, тоника трека забега): основной тон + деревянный 4-й обертон, который гаснет быстрее.
+            // Высоту каждого отскока задаёт лестница тонов (Ladder) — получается мелодия.
             clips[SfxId.Tink] = Make("marimba", 0.9f, (t, i) =>
             {
-                const float f = 587.33f;
+                const float f = 440f;
                 float body = Sin(f * t) * Mathf.Exp(-t * 6f);
                 float wood = Sin(f * 3.93f * t) * Mathf.Exp(-t * 22f) * 0.45f;
                 float strike = Sin(f * 9.2f * t) * Mathf.Exp(-t * 70f) * 0.25f;

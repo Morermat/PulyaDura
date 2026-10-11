@@ -6,11 +6,11 @@ namespace PulyaDura
 {
     public enum PickupType { Heal, Shield, OneShot, Mark }
 
-    /// <summary>Жёлтый ящик снабжения: ломается как обычный, из него выпадает бонус.</summary>
+    /// <summary>Белый ящик снабжения: ломается как обычный, из него выпадает бонус.</summary>
     public class SupplyBox : Crate
     {
-        static readonly Color Yellow = new(2.6f, 2.1f, 0.3f);
-        protected override Color BreakColor => Yellow;
+        static readonly Color White = new(2.2f, 2.4f, 2.8f);
+        protected override Color BreakColor => White;
 
         protected override void OnBroken(DamageInfo info)
         {
@@ -20,7 +20,7 @@ namespace PulyaDura
     }
 
     /// <summary>
-    /// Бонус из жёлтого ящика. Подбирается наездом.
+    /// Бонус из белого ящика. Подбирается наездом.
     /// Аптечка +2 брони, Щит гасит следующее попадание, Ваншот — следующий выстрел убивает,
     /// Метка — следующие 3 попадания делают врага видимым на пару секунд.
     /// </summary>
@@ -35,10 +35,11 @@ namespace PulyaDura
 
         public static Color ColorOf(PickupType t) => t switch
         {
-            PickupType.Heal => new Color(0.4f, 2.6f, 0.6f),
-            PickupType.Shield => new Color(0.4f, 1.6f, 3f),
-            PickupType.OneShot => new Color(3f, 0.5f, 0.3f),
-            _ => new Color(2.6f, 2.2f, 0.3f),
+            // Только синий, красный и белый: аптечка белая, щит синий, ваншот красный, метка голубовато-белая
+            PickupType.Heal => new Color(2.4f, 2.6f, 3f),
+            PickupType.Shield => new Color(0.4f, 1.4f, 3f),
+            PickupType.OneShot => new Color(3f, 0.35f, 0.3f),
+            _ => new Color(1.3f, 2f, 3f),
         };
 
         public static string TitleOf(PickupType t) => t switch
@@ -182,7 +183,7 @@ namespace PulyaDura
 
         static readonly Color[] PairColors =
         {
-            new(2.6f, 0.6f, 2.4f), new(2.4f, 2.2f, 0.4f), new(0.6f, 1.2f, 3f), new(0.5f, 2.6f, 2.4f),
+            new(0.5f, 1.0f, 3f), new(2.6f, 0.4f, 0.6f), new(2.2f, 2.4f, 2.8f), new(1.2f, 0.7f, 3f),
         };
 
         public static Teleporter Create(Vector3 pos, int pairIndex, Transform parent)
@@ -268,7 +269,7 @@ namespace PulyaDura
         float last = -10f;
         MeshRenderer plate;
         MaterialPropertyBlock mpb;
-        static readonly Color Amber = new(2.6f, 1.2f, 0.2f);
+        static readonly Color Amber = new(2.8f, 0.3f, 0.25f);
 
         public static NoiseTrap Create(Vector3 pos, Transform parent)
         {

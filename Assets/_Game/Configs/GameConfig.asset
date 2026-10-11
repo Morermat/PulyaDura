@@ -71,6 +71,8 @@ MonoBehaviour:
     bounces: 2
     range: 45
     chargeTime: 0
+    burst: 1
+    burstInterval: 0.09
     echoRadius: 6.5
     noiseRadius: 14
     barrels: 1
@@ -80,11 +82,11 @@ MonoBehaviour:
     turretSize: 0.62
   - id: plasma
     title: "\u041F\u043B\u0430\u0437\u043C\u0430"
-    description: "\u043E\u0447\u0435\u0440\u0435\u0434\u044C \xB7 3 \u043E\u0442\u0441\u043A\u043E\u043A\u0430"
+    description: "\u043E\u0447\u0435\u0440\u0435\u0434\u044C \u0438\u0437 3 \xB7 3 \u043E\u0442\u0441\u043A\u043E\u043A\u0430"
     style: 1
     mode: 0
     damage: 1
-    reload: 0.17
+    reload: 0.62
     pellets: 1
     spread: 0
     projectileSpeed: 11
@@ -92,6 +94,8 @@ MonoBehaviour:
     bounces: 3
     range: 30
     chargeTime: 0
+    burst: 3
+    burstInterval: 0.09
     echoRadius: 3.2
     noiseRadius: 9
     barrels: 2
@@ -113,6 +117,8 @@ MonoBehaviour:
     bounces: 1
     range: 11
     chargeTime: 0
+    burst: 1
+    burstInterval: 0.09
     echoRadius: 2.6
     noiseRadius: 12
     barrels: 1
@@ -122,20 +128,22 @@ MonoBehaviour:
     turretSize: 0.66
   - id: rail
     title: "\u0420\u0435\u043B\u044C\u0441\u0430"
-    description: "\u0437\u0430\u0440\u044F\u0434 \xB7 \u043B\u0443\u0447 \u043D\u0430\u0441\u043A\u0432\u043E\u0437\u044C"
+    description: "\u0437\u0430\u0440\u044F\u0434 \xB7 \u043B\u0443\u0447 \u043D\u0430\u0441\u043A\u0432\u043E\u0437\u044C, \u043B\u043E\u043C\u0430\u0435\u0442 \u044F\u0449\u0438\u043A\u0438"
     style: 3
     mode: 1
-    damage: 4
-    reload: 1.8
+    damage: 3
+    reload: 2.4
     pellets: 1
     spread: 0
     projectileSpeed: 14
     projectileRadius: 0.12
-    bounces: 3
-    range: 40
-    chargeTime: 0.5
-    echoRadius: 5
-    noiseRadius: 18
+    bounces: 2
+    range: 32
+    chargeTime: 0.7
+    burst: 1
+    burstInterval: 0.09
+    echoRadius: 7
+    noiseRadius: 22
     barrels: 2
     barrelLength: 1.05
     barrelWidth: 0.07
@@ -168,7 +176,7 @@ MonoBehaviour:
     hullId: strizh
     turretId: cannon
     behaviour: 1
-    accent: {r: 3, g: 1, b: 0.3, a: 1}
+    accent: {r: 3, g: 0.6, b: 0.35, a: 1}
     hpOverride: 2
     damageOverride: 1
     fireInterval: 3
@@ -189,7 +197,7 @@ MonoBehaviour:
     hullId: begemot
     turretId: cannon
     behaviour: 1
-    accent: {r: 3, g: 1.6, b: 0.2, a: 1}
+    accent: {r: 3, g: 0.75, b: 0.3, a: 1}
     hpOverride: 4
     damageOverride: 1
     fireInterval: 1.8
@@ -231,7 +239,7 @@ MonoBehaviour:
     hullId: barsuk
     turretId: shotgun
     behaviour: 2
-    accent: {r: 1.8, g: 0.4, b: 3, a: 1}
+    accent: {r: 3, g: 0.3, b: 0.7, a: 1}
     hpOverride: 0
     damageOverride: 0
     fireInterval: 1.6
@@ -294,7 +302,7 @@ MonoBehaviour:
     hullId: begemot
     turretId: rail
     behaviour: 2
-    accent: {r: 3, g: 0.3, b: 1.6, a: 1}
+    accent: {r: 3, g: 0.2, b: 0.5, a: 1}
     hpOverride: 14
     damageOverride: 0
     fireInterval: 2.6
@@ -328,6 +336,8 @@ MonoBehaviour:
     bounces: 1
     range: 9
     chargeTime: 0
+    burst: 1
+    burstInterval: 0.09
     echoRadius: 2.5
     noiseRadius: 10
     barrels: 1
@@ -357,23 +367,23 @@ MonoBehaviour:
   engineNoiseInterval: 0.5
   echoGrowthPerBounce: 0.3
   glowGrowthPerBounce: 0.45
-  playerLightColor: {r: 1, g: 0.9, b: 0.78, a: 1}
+  playerLightColor: {r: 0.95, g: 0.97, b: 1, a: 1}
   playerLightRange: 6.5
   playerLightIntensity: 3.2
   ambient: {r: 0.025, g: 0.03, b: 0.045, a: 1}
   floorColor: {r: 0.07, g: 0.075, b: 0.09, a: 1}
   floorGridGlow: {r: 0.004, g: 0.007, b: 0.012, a: 1}
   wallColor: {r: 0.08, g: 0.085, b: 0.1, a: 1}
-  crateColor: {r: 0.17, g: 0.11, b: 0.06, a: 1}
+  crateColor: {r: 0.12, g: 0.12, b: 0.14, a: 1}
   echoColor: {r: 0.25, g: 0.85, b: 1.5, a: 1}
   enemyEchoColor: {r: 1.5, g: 0.22, b: 0.3, a: 1}
-  tempWallColor: {r: 1.6, g: 0.9, b: 0.2, a: 1}
-  playerBody: {r: 0.16, g: 0.4, b: 0.36, a: 1}
-  playerAccent: {r: 0.3, g: 2.4, b: 1.7, a: 1}
+  tempWallColor: {r: 0.4, g: 1.2, b: 3, a: 1}
+  playerBody: {r: 0.12, g: 0.26, b: 0.4, a: 1}
+  playerAccent: {r: 0.35, g: 1.5, b: 3, a: 1}
   enemyBody: {r: 0.3, g: 0.11, b: 0.1, a: 1}
   enemyAccent: {r: 3, g: 0.35, b: 0.2, a: 1}
   enemyReveal: {r: 1.4, g: 0.16, b: 0.1, a: 1}
   trackColor: {r: 0.05, g: 0.05, b: 0.06, a: 1}
   bulletPlayer: {r: 0.45, g: 2.2, b: 3, a: 1}
-  bulletDanger: {r: 3, g: 1.2, b: 0.2, a: 1}
+  bulletDanger: {r: 3, g: 0.45, b: 0.75, a: 1}
   bulletEnemy: {r: 3, g: 0.3, b: 0.25, a: 1}

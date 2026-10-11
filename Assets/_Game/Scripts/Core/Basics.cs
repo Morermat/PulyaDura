@@ -12,6 +12,9 @@ namespace PulyaDura
         public const int Wall = 8;
         public const int Tank = 9;
         public const int Debris = 10;
+        /// <summary>Решётка «=»: держит танки, но пропускает пули, эхо и взгляд.</summary>
+        public const int Fence = 11;
+        public const int FenceMask = 1 << Fence;
         public const int WallMask = 1 << Wall;
         public const int TankMask = 1 << Tank;
         public const int SolidMask = WallMask | TankMask;

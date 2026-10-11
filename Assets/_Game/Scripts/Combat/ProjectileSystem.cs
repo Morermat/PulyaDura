@@ -17,6 +17,7 @@ namespace PulyaDura
         public bool dead;
         public bool power;          // ваншот: урон 99
         public bool mark;           // метка: попадание делает врага видимым
+        public int ladder;          // ступень лестницы тонов, с которой выпущена пуля
         public float portalCooldown;
         public ProjectileVisual visual;
     }
@@ -26,6 +27,7 @@ namespace PulyaDura
     {
         public bool power;
         public bool mark;
+        public int ladder;
     }
 
     /// <summary>
@@ -57,18 +59,14 @@ namespace PulyaDura
             active.Clear();
         }
 
-        /// <summary>Звукоряд отскоков: минорная пентатоника в тональности музыки (ре). Каждый отскок — нота выше.</summary>
-        static readonly int[] BounceScale = { 0, 3, 5, 7, 10, 12, 15, 17, 19 };
 
         /// <summary>Урон выстрела: у слабых врагов (новичок, турель) свой, меньше, чем у пушки.</summary>
         static int DamageOf(Tank owner, TurretConfig turret) =>
             owner != null && owner.Enemy != null && owner.Enemy.damageOverride > 0 ? owner.Enemy.damageOverride : turret.damage;
 
-        public static float BouncePitch(int bounce, Team team)
-        {
-            int semis = BounceScale[Mathf.Clamp(bounce, 0, BounceScale.Length - 1)];
-            return Mathf.Pow(2f, semis / 12f) * (team == Team.Player ? 1f : 0.5f); // враги — октавой ниже
-        }
+        /// <summary>Высота отскока: у игрока продолжает лестницу тонов от ступени выстрела, у врагов — своя гамма октавой ниже.</summary>
+        public static float BouncePitch(int bounce, Team team, int ladder = 0) =>
+            team == Team.Player ? Sfx.LadderPitch(ladder + bounce) : Sfx.LadderPitch(bounce) * 0.5f;
 
         /// <summary>Кольцо шрапнели (красная бочка). Владелец — тот, кто подорвал: ему и засчитываются убийства.</summary>
         public void SpawnShrapnel(Tank source, Vector3 center, TurretConfig shrapnel, int count)
@@ -89,6 +87,7 @@ namespace PulyaDura
                 team = team ?? (owner != null ? owner.Team : Team.Enemy),
                 power = mods.power,
                 mark = mods.mark,
+                ladder = mods.ladder,
                 cfg = turret,
                 pos = origin,
                 prevPos = origin,
@@ -269,17 +268,18 @@ namespace PulyaDura
                 Sfx.I.Play(SfxId.Clang, p.pos, 0.9f, Random.Range(0.95f, 1.05f));
                 Fx.I.Sparks(p.pos, -p.dir, Color.white * 2f, 14, 6f);
                 EchoSystem.I.Emit(p.pos, EchoRadius(p), cfg.echoColor, 0.8f);
-                GameManager.I.UI.Floating(p.pos + Vector3.up, "ЩИТ", UiKit.TextColor, 26);
+                GameManager.I.UI.Floating(p.pos + Vector3.up, "ЩИТ", UiKit.Accent, 34);
                 return;
             }
             tank.TakeDamage(new DamageInfo { amount = p.power ? 99 : DamageOf(p.owner, p.cfg), source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone });
             if (p.mark && !tank.IsDead) tank.Visual.Mark(cfg.markDuration);
+            if ((p.power || p.mark) && p.owner != null && p.owner != tank) p.owner.Weapon.ConsumeMods(p.power, p.mark);
             EchoSystem.I.Emit(p.pos, EchoRadius(p) * 0.6f, EchoColor(p), 0.8f);
             Fx.I.Sparks(p.pos, -p.dir, ColorOf(p), 14 + 8 * p.bouncesDone, 6f);
             Die(p, false);
         }
 
-        /// <summary>Ящик, жёлтый ящик или бочка: всё, что ломается, но не танк.</summary>
+        /// <summary>Ящик, белый ящик или бочка: всё, что ломается, но не танк.</summary>
         void HitBreakable(Projectile p, IDamageable target)
         {
             target.TakeDamage(new DamageInfo { amount = DamageOf(p.owner, p.cfg), source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone });
@@ -295,7 +295,7 @@ namespace PulyaDura
             GameEvents.RaiseNoise(p.pos, p.cfg.noiseRadius * 0.6f, p.team);
             if (p.bouncesLeft <= 0)
             {
-                Sfx.I.Play(SfxId.Tink, p.pos, 0.45f, BouncePitch(p.bouncesDone + 1, p.team) * 0.5f);
+                Sfx.I.Play(SfxId.Tink, p.pos, 0.45f, BouncePitch(p.bouncesDone + 1, p.team, p.ladder) * 0.5f);
                 Die(p, true);
                 return;
             }
@@ -304,7 +304,7 @@ namespace PulyaDura
             p.dir = Prims.Flat(Vector3.Reflect(p.dir, normal)).normalized;
             p.pos += normal * 0.02f;
             p.visual.SetRadius(p.cfg.projectileRadius * (1f + 0.2f * p.bouncesDone));
-            Sfx.I.Play(SfxId.Tink, p.pos, 0.75f, BouncePitch(p.bouncesDone, p.team));
+            Sfx.I.Play(SfxId.Tink, p.pos, 0.75f, BouncePitch(p.bouncesDone, p.team, p.ladder));
         }
 
         /// <summary>Сколько снарядов сейчас в полёте (для QA).</summary>
@@ -344,9 +344,15 @@ namespace PulyaDura
         /// <summary>Рельса: мгновенный луч по той же траектории, что у пуль. Пробивает танки.</summary>
         public void FireRail(Tank owner, TurretConfig turret, Vector3 origin, Vector3 dir, ShotMods mods = default)
         {
-            Ricochet.TracePath(origin, dir, turret.range, turret.bounces, turret.projectileRadius, Layers.WallMask, railPath);
+            // Ящики и бочки на пути луча разлетаются с одного выстрела, и луч идёт дальше сквозь них
+            for (int pass = 0; pass < 6; pass++)
+            {
+                Ricochet.TracePath(origin, dir, turret.range, turret.bounces, turret.projectileRadius, Layers.WallMask, railPath);
+                if (!BreakOnPath(owner, turret, railPath)) break;
+            }
             railHit.Clear();
             Color echo = owner.Team == Team.Player ? cfg.echoColor : cfg.enemyEchoColor;
+            bool consumed = false;
 
             for (int s = 0; s < railPath.Count - 1; s++)
             {
@@ -368,8 +374,16 @@ namespace PulyaDura
                     }
                     t.TakeDamage(new DamageInfo { amount = mods.power ? 99 : DamageOf(owner, turret), source = owner, point = t.transform.position, direction = d / len, bounces = s });
                     if (mods.mark && !t.IsDead) t.Visual.Mark(cfg.markDuration);
+                    if ((mods.power || mods.mark) && t != owner && !consumed)
+                    {
+                        owner.Weapon.ConsumeMods(mods.power, mods.mark);
+                        consumed = true;
+                    }
                     Fx.I.Sparks(t.transform.position + Vector3.up * 0.5f, -d / len, cfg.bulletDanger, 18, 7f);
                 }
+                // Луч светит на всём пути: небольшие волны вдоль отрезка и большая — в точке отскока
+                for (float along = 2f; along < len - 1f; along += 4f)
+                    EchoSystem.I.Emit(a + d / len * along, 3.6f, echo, 0.75f, ring: false);
                 if (s + 1 < railPath.Count)
                 {
                     EchoSystem.I.Emit(b, turret.echoRadius, echo);
@@ -380,6 +394,22 @@ namespace PulyaDura
             var beam = beamPool.Count > 0 ? beamPool.Pop() : CreateBeam();
             beam.Play(railPath, owner.Team == Team.Player ? cfg.bulletPlayer : cfg.bulletEnemy);
             GameEvents.RaiseNoise(railPath[railPath.Count - 1], turret.noiseRadius * 0.6f, owner.Team);
+        }
+
+        /// <summary>Первый ящик или бочка, в которые упирается луч, ломается целиком. true — путь надо пересчитать.</summary>
+        bool BreakOnPath(Tank owner, TurretConfig turret, List<Vector3> path)
+        {
+            for (int s = 0; s < path.Count - 1; s++)
+            {
+                Vector3 d = path[s + 1] - path[s];
+                float len = d.magnitude;
+                if (len < 0.01f) continue;
+                if (!Physics.SphereCast(path[s], turret.projectileRadius, d / len, out var hit, len + 0.1f, Layers.WallMask, QueryTriggerInteraction.Ignore)) continue;
+                if (hit.collider.GetComponent<Tank>() != null || !hit.collider.TryGetComponent<IDamageable>(out var target)) continue;
+                target.TakeDamage(new DamageInfo { amount = 99, source = owner, point = hit.point, direction = d / len });
+                return true;
+            }
+            return false;
         }
 
         RailBeam CreateBeam()

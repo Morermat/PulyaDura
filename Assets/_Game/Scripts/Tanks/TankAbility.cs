@@ -89,7 +89,7 @@ namespace PulyaDura
             for (int i = -1; i <= 1; i++)
             {
                 Vector3 p = root.transform.TransformPoint(new Vector3(i * 1.02f, cfg.wallHeight * 0.5f, 0f));
-                if (Physics.CheckBox(p, size * 0.48f, rot, Layers.SolidMask, QueryTriggerInteraction.Ignore)) continue;
+                if (Physics.CheckBox(p, size * 0.48f, rot, Layers.SolidMask | Layers.FenceMask, QueryTriggerInteraction.Ignore)) continue;
                 var r = Prims.Part("Block", PrimitiveType.Cube, root.transform, root.transform.InverseTransformPoint(p), size, Mats.Wall);
                 r.gameObject.layer = Layers.Wall;
                 r.gameObject.AddComponent<BoxCollider>();

@@ -9,6 +9,11 @@ namespace PulyaDura
     /// <summary>
     /// Мини-конструктор uGUI: интерфейс собирается кодом, без префабов.
     /// Стиль: тёмные панели со срезанными углами, тонкая рамка, моноширинные цифры, иконки вместо слов.
+    /// Правила, общие для всего интерфейса:
+    /// - весь текст ЗАГЛАВНЫМИ (CapsText);
+    /// - три начертания: Black — заголовки, Bold — текст и кнопки, Mono — цифры, клавиши и подписи;
+    /// - кегли из одной шкалы (TypeScale);
+    /// - два цвета: синий — игрок и интерфейс, красный — враги и опасность, остальное белое и серое.
     /// </summary>
     public static class UiKit
     {
@@ -16,7 +21,7 @@ namespace PulyaDura
         public static readonly Color Line = new(0.6f, 0.85f, 1f, 0.16f);
         public static readonly Color Accent = new(0.36f, 0.88f, 1f);
         public static readonly Color AccentDim = new(0.36f, 0.88f, 1f, 0.18f);
-        public static readonly Color Danger = new(1f, 0.56f, 0.22f);
+        public static readonly Color Danger = new(1f, 0.36f, 0.32f);
         public static readonly Color Enemy = new(1f, 0.32f, 0.28f);
         public static readonly Color TextColor = new(0.92f, 0.95f, 0.98f);
         public static readonly Color Muted = new(0.55f, 0.62f, 0.7f);
@@ -24,14 +29,25 @@ namespace PulyaDura
 
         static readonly Font[] fonts = new Font[5];
 
+        /// <summary>Шкала кеглей: любой размер притягивается к ближайшему шагу (крупные заголовки — как есть).</summary>
+        static readonly int[] TypeScale = { 14, 16, 18, 20, 24, 28, 34, 40, 48, 56, 72, 96, 112 };
+
+        public static int Snap(int size)
+        {
+            if (size > 112) return size;
+            int best = TypeScale[0];
+            foreach (int s in TypeScale) if (Mathf.Abs(s - size) < Mathf.Abs(best - size)) best = s;
+            return best;
+        }
+
         public static Font FontOf(Weight w)
         {
             int i = (int)w;
             if (fonts[i] != null) return fonts[i];
             string name = w switch
             {
-                Weight.Black => "Roboto-Black", Weight.Bold => "Roboto-Bold", Weight.Medium => "Roboto-Medium",
-                Weight.Mono => "RobotoMono-Bold", _ => "Roboto-Regular"
+                // Три начертания на весь интерфейс: Regular/Medium/Bold сведены к одному Bold
+                Weight.Black => "Roboto-Black", Weight.Mono => "RobotoMono-Bold", _ => "Roboto-Bold"
             };
             fonts[i] = Resources.Load<Font>("Fonts/" + name);
             if (fonts[i] == null) fonts[i] = Resources.GetBuiltinResource<Font>("LegacyRuntime.ttf");
@@ -110,10 +126,10 @@ namespace PulyaDura
 
         public static Text Label(Transform parent, string text, int size, Color color, TextAnchor align, Weight weight = Weight.Regular)
         {
-            var t = parent.gameObject.AddComponent<Text>();
+            var t = parent.gameObject.AddComponent<CapsText>();
             t.font = FontOf(weight);
             t.text = text;
-            t.fontSize = size;
+            t.fontSize = Snap(size);
             t.color = color;
             t.alignment = align;
             t.horizontalOverflow = HorizontalWrapMode.Wrap;

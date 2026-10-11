@@ -315,6 +315,7 @@ namespace PulyaDura
 
             // 11д. Объекты на карте и бонусы
             yield return WorldObjectTests();
+            yield return WeaponTests();
 
             // 11г. Враг стреляет за кадром — у края экрана стрелка в его сторону
             gm.DebugLoadRoom(6);
@@ -622,7 +623,7 @@ namespace PulyaDura
                 gm.CurrentRoom != null ? $"{gm.CurrentRoom.title}, врагов {gm.EnemiesTotal}" : "нет комнаты");
             int rounded = 0;
             foreach (var w in WallBlock.All) if (w.GetComponent<MeshCollider>() != null) rounded++;
-            Check("Стены скруглены: колонны, торцы и углы", rounded > 0, $"скруглённых клеток {rounded} из {WallBlock.All.Count}");
+            Note($"бесконечный режим: скруглённых клеток {rounded} из {WallBlock.All.Count}");
             Shot("26_endless_room");
             yield return Wait(0.1f);
             gm.Player.Invulnerable = true;
@@ -647,6 +648,99 @@ namespace PulyaDura
             gm.SetEndless(false);
             gm.EnterGarage();
             yield return Wait(0.5f);
+        }
+
+        /// <summary>Рельса и ящики, очередь плазмы, бонус тратится только при попадании, решётка, скругления.</summary>
+        IEnumerator WeaponTests()
+        {
+            var gm = GameManager.I;
+            var cfg = GameManager.Cfg;
+            Vector3 up = Vector3.up * Ricochet.ShotHeight;
+
+            // Рельса: ящик разлетается с одного выстрела, луч подсвечивает стены по всему пути
+            gm.DebugLoadRoom(1);
+            yield return Wait(cfg.revealFade + 1.5f);
+            var p = gm.Player;
+            p.Invulnerable = true;
+            p.GetComponent<PlayerController>().enabled = false;
+            Crate crate = null;
+            foreach (var c in FindObjectsByType<Crate>(FindObjectsSortMode.None))
+                if (!(c is SupplyBox) && Mathf.Abs(c.transform.position.z - CellToWorld(3, 6, 21, 13).z) < 0.3f && c.transform.position.x < -8f) crate = c;
+            int litBefore = 0;
+            foreach (var w in WallBlock.All) if (w.Reveal > 0.3f) litBefore++;
+            bool hadCrate = crate != null;
+            if (hadCrate) ProjectileSystem.I.FireRail(p, cfg.Turret("rail"), CellToWorld(7, 6, 21, 13) + up, Vector3.left);
+            yield return Wait(0.6f); // волна эха доходит до стен не сразу
+            int lit = 0;
+            foreach (var w in WallBlock.All) if (w.Reveal > 0.3f) lit++;
+            Check("Рельса ломает ящик с одного выстрела", hadCrate && crate == null, hadCrate ? "" : "ящика нет");
+            Check("Рельса подсвечивает стены вдоль всего луча", lit - litBefore >= 10, $"подсвечено стен: {litBefore} → {lit}");
+            Shot("28_rail_echo");
+            yield return Wait(0.1f);
+
+            // Бонус «Метка» не тратится на выстрел в стену
+            p.Weapon.MarkShots = 3;
+            p.Visual.SetTurretDirection(Vector3.left);
+            p.Weapon.TryFire();
+            yield return Wait(1.2f);
+            Check("Бонус тратится только при попадании, не на промах", p.Weapon.MarkShots == 3, $"меток осталось {p.Weapon.MarkShots}");
+            p.Weapon.MarkShots = 0;
+
+            // Плазма: очередь из трёх, потом пауза
+            gm.SelectTurret(cfg.turrets.FindIndex(t => t.id == "plasma"));
+            gm.DebugLoadRoom(0);
+            yield return Wait(0.6f);
+            p = gm.Player;
+            p.Invulnerable = true;
+            p.GetComponent<PlayerController>().enabled = false;
+            int shots0 = gm.Stats.shots;
+            p.Visual.SetTurretDirection(Vector3.back);
+            bool first = p.Weapon.TryFire();
+            yield return Wait(0.35f);
+            int burst = gm.Stats.shots - shots0;
+            bool blocked = !p.Weapon.TryFire();
+            yield return Wait(0.9f);
+            bool again = p.Weapon.TryFire();
+            yield return Wait(0.35f);
+            Check("Звук: выстрелы подряд поднимают тон дольше двух выстрелов", Sfx.I.LadderSteps >= 6 && Sfx.LadderPitch(5) > Sfx.LadderPitch(2),
+                $"ступеней подряд: {Sfx.I.LadderSteps}");
+            Check("Плазма: очередь из 3 выстрелов, потом перезарядка", first && burst == 3 && blocked && again, $"в очереди {burst}, во время паузы {(blocked ? "нельзя" : "можно")}, после — {(again ? "можно" : "нельзя")}");
+            gm.SelectTurret(0);
+
+            // Скругления только у отдельно стоящих стен: в комнате 1 стенка примыкает к внешней — она прямая
+            int rounded0 = 0;
+            foreach (var w in WallBlock.All) if (w.GetComponent<MeshCollider>() != null) rounded0++;
+            gm.DebugLoadRoom(7);
+            yield return Wait(0.4f);
+            int rounded7 = 0;
+            foreach (var w in WallBlock.All) if (w.GetComponent<MeshCollider>() != null) rounded7++;
+            Check("Скруглены только отдельные колонны и стенки", rounded0 == 0 && rounded7 >= 2 && rounded7 <= 20, $"комната 1: {rounded0}, комната 8: {rounded7}");
+
+            // Решётка в комнате 3: пуля пролетает и попадает в турель, танк упирается
+            gm.DebugLoadRoom(2);
+            yield return Wait(0.5f);
+            p = gm.Player;
+            p.Invulnerable = true;
+            int fences = 0;
+            foreach (var col in FindObjectsByType<BoxCollider>(FindObjectsSortMode.None)) if (col.gameObject.layer == Layers.Fence) fences++;
+            Tank turret = null;
+            foreach (var t in Tank.All) if (t.Team == Team.Enemy && t.Enemy.symbol == "t") turret = t;
+            turret.Brain.enabled = false;
+            int hp0 = turret.Hp;
+            ProjectileSystem.I.Spawn(p, cfg.Turret("cannon"), CellToWorld(10, 7, 21, 13) + up, Vector3.forward, 0f);
+            yield return Wait(0.6f);
+            Check("Решётка пропускает пули", fences >= 3 && (turret == null || turret.IsDead || turret.Hp < hp0), $"решёток {fences}, турель {hp0} → {(turret != null ? turret.Hp : 0)}");
+            p.GetComponent<PlayerController>().enabled = true;
+            p.TeleportTo(CellToWorld(11, 9, 21, 13));
+            yield return Wait(0.3f);
+            float z0 = p.transform.position.z;
+            float fenceZ = CellToWorld(11, 6, 21, 13).z;
+            yield return Hold(1.6f, Key.W);
+            float z1 = p.transform.position.z;
+            Check("Решётка держит танк", z1 - z0 > 0.8f && z1 < fenceZ - 0.3f, $"z {z0:F1} → {z1:F1}, решётка на {fenceZ:F1}");
+            Shot("29_fence");
+            yield return Wait(0.1f);
+            p.Invulnerable = false;
         }
 
         IEnumerator WorldObjectTests()
@@ -715,7 +809,7 @@ namespace PulyaDura
             Check("Щит гасит одно попадание", hadShield && p.Hp == hpShield && p.ShieldCharges == 0, $"щит={hadShield}, броня {hpShield} → {p.Hp}");
             p.Invulnerable = true;
 
-            // Жёлтый ящик в комнате 2 роняет бонус
+            // Белый ящик в комнате 2 роняет бонус
             gm.DebugLoadRoom(1);
             yield return Wait(0.5f);
             var box = FindAnyObjectByType<SupplyBox>();
@@ -723,7 +817,7 @@ namespace PulyaDura
             for (int i = 0; i < 4 && box != null; i++)
                 box.TakeDamage(new DamageInfo { amount = 1, source = gm.Player, point = box.transform.position, direction = Vector3.up });
             yield return Wait(0.3f);
-            Check("Жёлтый ящик роняет бонус", hasBox && Pickup.All.Count == 1, $"ящик={hasBox}, бонусов {Pickup.All.Count}");
+            Check("Белый ящик роняет бонус", hasBox && Pickup.All.Count == 1, $"ящик={hasBox}, бонусов {Pickup.All.Count}");
             Shot("19_pickup");
             yield return Wait(0.1f);
 
