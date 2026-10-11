@@ -182,7 +182,7 @@ namespace PulyaDura
 
         static readonly Color[] PairColors =
         {
-            new(0.5f, 2.6f, 2.4f), new(2.6f, 0.6f, 2.4f), new(2.4f, 2.2f, 0.4f), new(0.6f, 1.2f, 3f),
+            new(2.6f, 0.6f, 2.4f), new(2.4f, 2.2f, 0.4f), new(0.6f, 1.2f, 3f), new(0.5f, 2.6f, 2.4f),
         };
 
         public static Teleporter Create(Vector3 pos, int pairIndex, Transform parent)
@@ -193,7 +193,7 @@ namespace PulyaDura
             var t = go.AddComponent<Teleporter>();
             t.Color = PairColors[Mathf.Abs(pairIndex) % PairColors.Length];
 
-            var disk = Prims.Part("Disk", PrimitiveType.Cylinder, go.transform, new Vector3(0f, 0.02f, 0f), new Vector3(1.1f, 0.01f, 1.1f), Mats.Unlit(t.Color * 0.25f));
+            var disk = Prims.Part("Disk", PrimitiveType.Cylinder, go.transform, new Vector3(0f, 0.02f, 0f), new Vector3(1.6f, 0.01f, 1.6f), Mats.Unlit(t.Color * 0.25f));
             disk.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
 
             var ringGo = new GameObject("Ring");
@@ -210,7 +210,7 @@ namespace PulyaDura
             for (int i = 0; i < 40; i++)
             {
                 float a = i * Mathf.PI * 2f / 40f;
-                float r = Radius * (i % 4 < 2 ? 1f : 0.86f); // зубчатое кольцо — видно вращение
+                float r = Radius * 1.4f * (i % 4 < 2 ? 1f : 0.86f); // зубчатое кольцо — видно вращение
                 t.ring.SetPosition(i, new Vector3(Mathf.Cos(a) * r, Mathf.Sin(a) * r, 0f));
             }
             t.ring.startColor = t.ring.endColor = EchoSystem.Ldr(t.Color);

@@ -4,30 +4,58 @@ using UnityEngine;
 namespace PulyaDura
 {
     /// <summary>
-    /// Адаптивная музыка из двух синхронных петель: «спокойная» (эмбиент) и «бой» (ударные и бас).
-    /// Громкость боевого слоя растёт, когда враги знают, где игрок. Сетка пола пульсирует в такт.
-    /// Свои треки из FL Studio: перетащите в Calm Loop / Combat Loop и укажите BPM (см. README).
-    /// Пока треков нет, обе петли синтезируются кодом (MusicSynth).
+    /// Музыка. Два трека, оба играют по кругу:
+    /// трек забега (Resources/Music/main_st) и трек гаража и итогов (Resources/Music/garage_st). Между ними плавный переход.
+    /// В бою музыка «открывается»: пока враги не знают, где игрок, её приглушает фильтр низких частот.
+    /// Сетка пола пульсирует в такт (BPM трека), голос «ПУЛЯ. ДУРА.» попадает в долю.
+    /// Если треков нет, играет заглушка из кода (MusicSynth): спокойная и боевая петли.
     /// </summary>
     public class MusicDirector : MonoBehaviour
     {
         public static MusicDirector I { get; private set; }
 
-        [Header("Свои петли (одинаковой длины и темпа)")]
+        [Header("Треки (по кругу)")]
+        public AudioClip gameLoop;
+        public float gameBpm = 120f;
+        [Range(0f, 1f)] public float gameVolume = 0.42f;
+        public AudioClip garageLoop;
+        public float garageBpm = 98f;
+        [Range(0f, 1f)] public float garageVolume = 0.8f;
+
+        [Header("Заглушка из кода, если треков нет")]
         public AudioClip calmLoop;
         public AudioClip combatLoop;
         public float bpm = 100f;
         [Range(0f, 1f)] public float volume = 0.5f;
         [Tooltip("Насколько сильно сетка пола вспыхивает на долю")] public float floorPulse = 1.2f;
 
-        AudioSource calm, combat;
-        float intensity, duckUntil;
+        AudioSource calm, combat, game, garage;
+        AudioLowPassFilter gameFilter;
+        float intensity, duckUntil, garageMix;
         int lastBeat = -1;
 
-        public float BeatLength => 60f / bpm;
+        bool HasTracks => game != null;
+        static bool InGarage
+        {
+            get
+            {
+                var gm = GameManager.I;
+                return gm == null || gm.State is GameState.Garage or GameState.Result;
+            }
+        }
+        /// <summary>Трек, по которому считаем доли: тот, что сейчас слышно.</summary>
+        AudioSource BeatSource => !HasTracks ? calm : garage != null && garageMix > 0.5f ? garage : game;
+        float CurrentBpm => !HasTracks ? bpm : BeatSource == garage ? garageBpm : gameBpm;
+
+        public float BeatLength => 60f / CurrentBpm;
         public float BeatPulse { get; private set; }
         public float Intensity => intensity;
-        public bool IsPlaying => calm != null && calm.isPlaying;
+        public bool IsPlaying => HasTracks ? game.isPlaying || (garage != null && garage.isPlaying) : calm != null && calm.isPlaying;
+        /// <summary>Сейчас слышен трек гаража (для автотеста).</summary>
+        public bool GarageAudible => garage != null && garage.isPlaying && garage.volume > 0.05f;
+        /// <summary>Сейчас слышен трек забега (для автотеста).</summary>
+        public bool GameAudible => HasTracks ? game.isPlaying && game.volume > 0.05f : IsPlaying;
+        public bool UsesTracks => HasTracks;
         public event Action<int> Beat;
 
         /// <summary>Секунд до следующей доли — чтобы попадать голосом и вспышками в такт.</summary>
@@ -43,39 +71,88 @@ namespace PulyaDura
         void Awake()
         {
             I = this;
+            if (gameLoop == null) gameLoop = Resources.Load<AudioClip>("Music/main_st");
+            if (garageLoop == null) garageLoop = Resources.Load<AudioClip>("Music/garage_st");
+            double start = AudioSettings.dspTime + 0.2;
+            if (gameLoop != null)
+            {
+                game = CreateSource("Game", gameLoop);
+                gameFilter = game.gameObject.AddComponent<AudioLowPassFilter>();
+                gameFilter.cutoffFrequency = 22000f;
+                game.volume = 0f;
+                game.PlayScheduled(start);
+                if (garageLoop != null)
+                {
+                    garage = CreateSource("Garage", garageLoop);
+                    garage.volume = 0f;
+                    garage.PlayScheduled(start);
+                }
+                garageMix = 1f;
+                return;
+            }
             if (calmLoop == null) calmLoop = MusicSynth.Calm(bpm);
             if (combatLoop == null) combatLoop = MusicSynth.Combat(bpm);
-            calm = CreateSource(calmLoop);
-            combat = CreateSource(combatLoop);
+            calm = CreateSource("Calm", calmLoop);
+            combat = CreateSource("Combat", combatLoop);
             combat.volume = 0f;
-            double start = AudioSettings.dspTime + 0.2;
             calm.PlayScheduled(start);
             combat.PlayScheduled(start);
         }
 
-        AudioSource CreateSource(AudioClip clip)
+        /// <summary>Каждый трек на своём дочернем объекте: фильтр действует только на свой источник.</summary>
+        AudioSource CreateSource(string name, AudioClip clip)
         {
-            var src = gameObject.AddComponent<AudioSource>();
+            var go = new GameObject("Music_" + name);
+            go.transform.SetParent(transform, false);
+            var src = go.AddComponent<AudioSource>();
             src.clip = clip;
             src.loop = true;
             src.playOnAwake = false;
             src.spatialBlend = 0f;
             src.reverbZoneMix = 0f; // музыка «сухая», реверберация комнаты на неё не действует
+            src.priority = 0;
             return src;
         }
 
         /// <summary>Приглушить музыку на время голоса.</summary>
         public void Duck(float seconds) => duckUntil = Mathf.Max(duckUntil, Time.unscaledTime + seconds);
 
-        float Beats() => calm == null || calm.clip == null ? 0f : (float)calm.timeSamples / calm.clip.frequency * bpm / 60f;
+        float Beats()
+        {
+            var src = BeatSource;
+            if (src == null || src.clip == null) return 0f;
+            return (float)src.timeSamples / src.clip.frequency * CurrentBpm / 60f;
+        }
 
         void Update()
         {
             float target = TargetIntensity();
-            intensity = Mathf.MoveTowards(intensity, target, Time.unscaledDeltaTime * (target > intensity ? 1.2f : 0.35f));
+            float dt = Time.unscaledDeltaTime;
+            intensity = Mathf.MoveTowards(intensity, target, dt * (target > intensity ? 1.2f : 0.35f));
             float duck = Time.unscaledTime < duckUntil ? 0.45f : 1f;
-            calm.volume = volume * (1f - 0.35f * intensity) * duck;
-            combat.volume = volume * intensity * duck;
+
+            if (HasTracks)
+            {
+                // Переход гараж ↔ забег за полторы секунды
+                garageMix = Mathf.MoveTowards(garageMix, InGarage && garage != null ? 1f : 0f, dt / 1.5f);
+                game.volume = gameVolume * (1f - garageMix) * duck * (0.75f + 0.25f * intensity);
+                gameFilter.cutoffFrequency = Mathf.Lerp(900f, 22000f, intensity * intensity);
+                if (garage != null)
+                {
+                    garage.volume = garageVolume * garageMix * duck;
+                    // Трек гаража стоит на паузе, пока его не слышно, и потом продолжается с того же места
+                    if (garageMix <= 0f && garage.isPlaying) garage.Pause();
+                    else if (garageMix > 0f && !garage.isPlaying) garage.UnPause();
+                    // В гараже трек забега остановлен: новый забег всегда начинается со вступления
+                    if (garageMix >= 1f && game.isPlaying) game.Stop();
+                    else if (garageMix < 1f && !game.isPlaying) game.Play();
+                }
+            }
+            else
+            {
+                calm.volume = volume * (1f - 0.35f * intensity) * duck;
+                combat.volume = volume * intensity * duck;
+            }
 
             float beats = Beats();
             int beat = Mathf.FloorToInt(beats);

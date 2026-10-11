@@ -128,9 +128,12 @@ namespace PulyaDura
         void OnEnable() => All.Add(this);
         void OnDisable() => All.Remove(this);
 
+        float lastHurt = -10f;
+
         public void TakeDamage(DamageInfo info)
         {
             if (IsDead || Invulnerable) return;
+            if (Team == Team.Player && info.amount < 50 && Time.time - lastHurt < 0.4f) return;
             if (ShieldCharges > 0)
             {
                 ShieldCharges--;
@@ -140,6 +143,7 @@ namespace PulyaDura
                 return;
             }
             Hp = Mathf.Max(0, Hp - info.amount);
+            lastHurt = Time.time;
             Visual.Flash();
             if (Visual.Hidden) EchoGhosts.I.Snapshot(this, Color.white, 1f);
             else Visual.Reveal(1f);

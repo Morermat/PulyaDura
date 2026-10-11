@@ -63,7 +63,7 @@ namespace PulyaDura
             var g = pool.Count > 0 ? pool.Pop() : new Ghost();
             g.parts.Clear();
             tank.Visual.CollectGhostParts(g.parts);
-            g.color = (Color)EchoSystem.Ldr(color) * (1.3f + strength);
+            g.color = (Color)EchoSystem.Ldr(color) * (0.8f + 0.4f * strength);
             g.t = 0f;
             g.life = cfg.revealFade * 0.75f;
             ghosts.Add(g);
@@ -110,7 +110,7 @@ namespace PulyaDura
                 }
                 float k = 1f - g.t / g.life;
                 // Короткая вспышка в начале, потом ровное угасание
-                float flash = g.t < 0.08f ? 1.6f : 1f;
+                float flash = g.t < 0.08f ? 1.25f : 1f;
                 var c = g.color * (k * flash);
                 c.a = k;
                 g.props.SetColor(Mats.BaseColor, c);

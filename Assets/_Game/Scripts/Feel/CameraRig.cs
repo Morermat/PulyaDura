@@ -121,7 +121,7 @@ namespace PulyaDura
                 foreach (var c in corners)
                 {
                     Vector3 v = cam.WorldToViewportPoint(c);
-                    if (v.z <= 0f || v.x < 0.02f || v.x > 0.98f || v.y < 0.1f || v.y > 0.9f) { fits = false; break; }
+                    if (v.z <= 0f || v.x < 0.02f || v.x > 0.98f || v.y < 0.19f || v.y > 0.9f) { fits = false; break; }
                 }
                 if (fits) hi = mid; else lo = mid;
             }

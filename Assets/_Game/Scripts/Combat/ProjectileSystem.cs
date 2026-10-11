@@ -60,6 +60,10 @@ namespace PulyaDura
         /// <summary>Звукоряд отскоков: минорная пентатоника в тональности музыки (ре). Каждый отскок — нота выше.</summary>
         static readonly int[] BounceScale = { 0, 3, 5, 7, 10, 12, 15, 17, 19 };
 
+        /// <summary>Урон выстрела: у слабых врагов (новичок, турель) свой, меньше, чем у пушки.</summary>
+        static int DamageOf(Tank owner, TurretConfig turret) =>
+            owner != null && owner.Enemy != null && owner.Enemy.damageOverride > 0 ? owner.Enemy.damageOverride : turret.damage;
+
         public static float BouncePitch(int bounce, Team team)
         {
             int semis = BounceScale[Mathf.Clamp(bounce, 0, BounceScale.Length - 1)];
@@ -268,7 +272,7 @@ namespace PulyaDura
                 GameManager.I.UI.Floating(p.pos + Vector3.up, "ЩИТ", UiKit.TextColor, 26);
                 return;
             }
-            tank.TakeDamage(new DamageInfo { amount = p.power ? 99 : p.cfg.damage, source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone });
+            tank.TakeDamage(new DamageInfo { amount = p.power ? 99 : DamageOf(p.owner, p.cfg), source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone });
             if (p.mark && !tank.IsDead) tank.Visual.Mark(cfg.markDuration);
             EchoSystem.I.Emit(p.pos, EchoRadius(p) * 0.6f, EchoColor(p), 0.8f);
             Fx.I.Sparks(p.pos, -p.dir, ColorOf(p), 14 + 8 * p.bouncesDone, 6f);
@@ -278,7 +282,7 @@ namespace PulyaDura
         /// <summary>Ящик, жёлтый ящик или бочка: всё, что ломается, но не танк.</summary>
         void HitBreakable(Projectile p, IDamageable target)
         {
-            target.TakeDamage(new DamageInfo { amount = p.cfg.damage, source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone });
+            target.TakeDamage(new DamageInfo { amount = DamageOf(p.owner, p.cfg), source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone });
             EchoSystem.I.Emit(p.pos, EchoRadius(p) * 0.6f, EchoColor(p), 0.7f);
             Die(p, false);
         }
@@ -362,7 +366,7 @@ namespace PulyaDura
                         Fx.I.Sparks(t.transform.position + Vector3.up * 0.5f, -d / len, Color.white * 2f, 18, 7f);
                         continue;
                     }
-                    t.TakeDamage(new DamageInfo { amount = mods.power ? 99 : turret.damage, source = owner, point = t.transform.position, direction = d / len, bounces = s });
+                    t.TakeDamage(new DamageInfo { amount = mods.power ? 99 : DamageOf(owner, turret), source = owner, point = t.transform.position, direction = d / len, bounces = s });
                     if (mods.mark && !t.IsDead) t.Visual.Mark(cfg.markDuration);
                     Fx.I.Sparks(t.transform.position + Vector3.up * 0.5f, -d / len, cfg.bulletDanger, 18, 7f);
                 }

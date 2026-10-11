@@ -107,6 +107,7 @@ namespace PulyaDura
             var barrels = new List<Vector3>();
             var traps = new List<Vector3>();
             var portals = new Dictionary<char, List<Vector3>>();
+            bool IsWall(int x, int y) => x < 0 || y < 0 || x >= w || y >= h || (x < room.rows[y].Length && room.rows[y][x] == '#');
             for (int y = 0; y < h; y++)
             {
                 string row = room.rows[y];
@@ -116,7 +117,7 @@ namespace PulyaDura
                     Vector3 pos = origin + new Vector3(x * c, 0f, -y * c);
                     switch (ch)
                     {
-                        case '#': CreateWall(pos); break;
+                        case '#': CreateWall(pos, WallShapes.Corners(IsWall(x, y - 1), IsWall(x + 1, y), IsWall(x, y + 1), IsWall(x - 1, y))); break;
                         case 'c': crates.Add(pos); break;
                         case 'y': supplies.Add(pos); break;
                         case 'x': barrels.Add(pos); break;
@@ -170,9 +171,25 @@ namespace PulyaDura
             Physics.SyncTransforms();
         }
 
-        void CreateWall(Vector3 pos)
+        /// <param name="corners">Скругления углов из WallShapes.Corners; null — обычный куб</param>
+        void CreateWall(Vector3 pos, float[] corners)
         {
             float c = cfg.cellSize;
+            if (corners != null)
+            {
+                var go = new GameObject("Wall");
+                go.transform.SetParent(root.transform, false);
+                go.transform.position = pos;
+                go.layer = Layers.Wall;
+                var mesh = WallShapes.Get(corners, c, cfg.wallHeight);
+                go.AddComponent<MeshFilter>().sharedMesh = mesh;
+                go.AddComponent<MeshRenderer>().sharedMaterial = Mats.Wall;
+                var col = go.AddComponent<MeshCollider>();
+                col.sharedMesh = mesh;
+                col.convex = true;
+                go.AddComponent<WallBlock>();
+                return;
+            }
             var r = Prims.Part("Wall", PrimitiveType.Cube, root.transform, pos + Vector3.up * cfg.wallHeight * 0.5f, new Vector3(c, cfg.wallHeight, c), Mats.Wall);
             r.gameObject.layer = Layers.Wall;
             r.gameObject.AddComponent<BoxCollider>();

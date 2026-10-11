@@ -107,6 +107,10 @@ namespace PulyaDura
         {
             Directory.CreateDirectory(dir);
             var gm = GameManager.I;
+            // Автотест пишет забеги в отдельную таблицу, чтобы не засорять настоящую
+            Leaderboard.Key = "leaderboard_autotest";
+            Leaderboard.Clear();
+            if (gm.Endless) gm.SetEndless(false);
             yield return Wait(1f);
 
             // 1. Гараж: танк на подиуме крутится
@@ -203,6 +207,7 @@ namespace PulyaDura
             Check("R перезапускает забег", gm.State == GameState.Playing && gm.RoomIndex == 0 && gm.Lives == GameManager.Cfg.lives);
 
             Check("Музыка играет", MusicDirector.I != null && MusicDirector.I.IsPlaying);
+            Check("В HUD счётчик врагов комнаты", gm.EnemiesTotal > 0 && gm.EnemiesLeft == gm.EnemiesTotal, $"{gm.EnemiesLeft}/{gm.EnemiesTotal}");
 
             // 9б. Враги невидимы, эхо оставляет «призрака» на месте врага
             gm.DebugLoadRoom(0);
@@ -377,11 +382,15 @@ namespace PulyaDura
                 yield return Wait(2.2f);
             }
             Check("Три смерти — экран поражения", gm.State == GameState.Result, $"state={gm.State} lives={gm.Lives}");
+            Check("После провала можно продолжить с той же комнаты", gm.ContinueRoom == gm.RoomIndex, $"continue={gm.ContinueRoom} room={gm.RoomIndex}");
             Shot("10_defeat");
             yield return Wait(0.3f);
             yield return Tap(Key.G);
             yield return Wait(0.3f);
             Check("G с экрана итогов — в гараж", gm.State == GameState.Garage);
+
+            // 14б. Бесконечный режим, генератор, музыка
+            yield return EndlessTests();
 
             // 14. Все сочетания корпус × пушка: стрельба и скилл без ошибок
             int errorsBefore = errors.Count;
@@ -554,6 +563,89 @@ namespace PulyaDura
             Destroy(root.gameObject);
             ui.SetActive(true);
             GameManager.I.EnterGarage();
+            yield return Wait(0.5f);
+        }
+
+        /// <summary>Генератор комнат, бесконечный режим, музыка гаража и забега, скруглённые стены.</summary>
+        IEnumerator EndlessTests()
+        {
+            var gm = GameManager.I;
+
+            // Генератор: 40 глубин подряд — без щелей в клетку, с игроком и врагами, босс на 6-й
+            int bad = 0, fallback0 = RoomGenerator.FallbackCount;
+            string firstBad = "";
+            bool boss = false;
+            for (int depth = 1; depth <= 40; depth++)
+            {
+                var room = RoomGenerator.Generate(depth, 12345);
+                var grid = new char[room.width, room.height];
+                int players = 0, enemies = 0;
+                bool rect = true;
+                for (int y = 0; y < room.height; y++)
+                {
+                    if (room.rows[y].Length != room.width) rect = false;
+                    for (int x = 0; x < room.width; x++)
+                    {
+                        char ch = x < room.rows[y].Length ? room.rows[y][x] : '.';
+                        grid[x, y] = ch;
+                        if (ch == 'P') players++;
+                        else if (GameManager.Cfg.Enemy(ch) != null) enemies++;
+                        if (ch == 'B' && depth == 6) boss = true;
+                    }
+                }
+                if (!rect || players != 1 || enemies == 0 || RoomGenerator.HasPinch(grid, room.width, room.height))
+                {
+                    bad++;
+                    if (firstBad.Length == 0) firstBad = $"глубина {depth}: P={players} врагов={enemies} прямоугольная={rect}";
+                }
+            }
+            Check("Генератор: 40 комнат без щелей, с игроком и врагами", bad == 0, bad == 0 ? "" : $"плохих {bad}, {firstBad}");
+            Check("Генератор: на глубине 6 босс", boss);
+            Note($"генератор: запасная комната понадобилась {RoomGenerator.FallbackCount - fallback0} раз из 40");
+
+            // Музыка гаража
+            gm.EnterGarage();
+            yield return Wait(2f);
+            bool tracks = MusicDirector.I.UsesTracks;
+            Check("Музыка: в гараже играет трек гаража", !tracks || MusicDirector.I.GarageAudible, tracks ? "" : "треков нет, играет заглушка");
+
+            // Бесконечный режим: Tab в гараже, генерируемые комнаты одна за другой
+            yield return Tap(Key.Tab);
+            yield return Wait(0.2f);
+            Check("Tab в гараже включает бесконечный режим", gm.Endless);
+            Shot("25_garage_endless");
+            yield return Wait(0.1f);
+            yield return Tap(Key.Enter);
+            yield return Wait(2f);
+            Check("Музыка: в бою играет трек забега, гаражный стих", !tracks || (MusicDirector.I.GameAudible && !MusicDirector.I.GarageAudible));
+            Check("Бесконечный режим: комната сгенерирована", gm.State == GameState.Playing && gm.CurrentRoom != null && gm.CurrentRoom.title.StartsWith("Глубина") && gm.EnemiesTotal > 0,
+                gm.CurrentRoom != null ? $"{gm.CurrentRoom.title}, врагов {gm.EnemiesTotal}" : "нет комнаты");
+            int rounded = 0;
+            foreach (var w in WallBlock.All) if (w.GetComponent<MeshCollider>() != null) rounded++;
+            Check("Стены скруглены: колонны, торцы и углы", rounded > 0, $"скруглённых клеток {rounded} из {WallBlock.All.Count}");
+            Shot("26_endless_room");
+            yield return Wait(0.1f);
+            gm.Player.Invulnerable = true;
+            for (int i = 0; i < 2; i++)
+            {
+                KillEnemies();
+                yield return Wait(4.5f);
+                if (gm.Player != null) gm.Player.Invulnerable = true;
+            }
+            Check("Бесконечный режим: после двух зачисток — глубина 3", gm.State == GameState.Playing && gm.RoomIndex == 2 && gm.CurrentRoom.title == "Глубина 3",
+                $"комната {gm.RoomIndex}, {gm.CurrentRoom?.title}, state={gm.State}");
+            Shot("27_endless_depth3");
+            yield return Wait(0.1f);
+
+            // Смерть возвращает в ту же сгенерированную комнату
+            string before = string.Join("", gm.CurrentRoom.rows);
+            gm.Player.Invulnerable = false;
+            gm.Player.TakeDamage(new DamageInfo { amount = 999, source = null, point = gm.Player.transform.position, direction = Vector3.forward });
+            yield return Wait(2.4f);
+            Check("Бесконечный режим: после смерти та же комната", gm.State == GameState.Playing && string.Join("", gm.CurrentRoom.rows) == before);
+
+            gm.SetEndless(false);
+            gm.EnterGarage();
             yield return Wait(0.5f);
         }
 

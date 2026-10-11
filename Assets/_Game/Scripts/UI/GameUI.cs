@@ -47,7 +47,9 @@ namespace PulyaDura
         Image bannerLineL, bannerLineR;
         float bannerTime, bannerLife;
         Text resultTitle, resultTime, resultKills, resultRicochets, resultExtra, resultRecord;
-        Text scoreText, garageBoard, resultBoard;
+        Text scoreText, garageBoard, resultBoard, enemyCounter, resultKeys;
+        Button continueButton;
+        readonly List<Button> modeButtons = new();
         readonly List<(Image icon, Text count)> buffSlots = new();
 
         // слово во весь экран (распев «ПУЛЯ. ДУРА.»)
@@ -133,6 +135,7 @@ namespace PulyaDura
 
             (IconId icon, Color color, string text)[] rules =
             {
+                (IconId.Tank, UiKit.TextColor, "Уничтожь всех врагов в комнате"),
                 (IconId.Ricochet, UiKit.Accent, "Стены невидимы. Отскок их подсвечивает"),
                 (IconId.Target, UiKit.Danger, "После отскока пуля бьёт и тебя"),
                 (IconId.Sound, UiKit.Enemy, "Враги слышат каждый выстрел"),
@@ -145,7 +148,7 @@ namespace PulyaDura
             }
 
             recordText = UiKit.Text("Record", garageRoot, BL, BL, new Vector2(100f, 128f), new Vector2(700f, 36f), "", 24, UiKit.Muted, TextAnchor.LowerLeft, Weight.Mono);
-            var board = UiKit.Panel("Board", garageRoot, TL, TL, new Vector2(96f, -520f), new Vector2(640f, 196f));
+            var board = UiKit.Panel("Board", garageRoot, TL, TL, new Vector2(96f, -580f), new Vector2(640f, 196f));
             UiKit.Icon("Trophy", board.transform, TL, TL, new Vector2(24f, -18f), 26f, IconId.Trophy, UiKit.Accent);
             UiKit.Text("Head", board.transform, TL, TL, new Vector2(60f, -20f), new Vector2(560f, 26f), "ЛУЧШИЕ ЗАБЕГИ", 18, UiKit.Muted, TextAnchor.UpperLeft, Weight.Mono);
             garageBoard = UiKit.Text("Rows", board.transform, TL, TL, new Vector2(24f, -56f), new Vector2(600f, 130f), "", 19, UiKit.TextColor, TextAnchor.UpperLeft, Weight.Mono);
@@ -183,6 +186,13 @@ namespace PulyaDura
             statRate = Stat(ct, "ТЕМП", -502f, pad, inner);
             statBounces = Stat(ct, "ОТСКОКИ", -530f, pad, inner);
 
+            // Режим: 8 комнат или бесконечный (Tab)
+            float mw = (inner - 10f) / 2f;
+            modeButtons.Add(UiKit.Button("ModeStory", ct, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(pad, pad + 128f), new Vector2(mw, 60f),
+                "8 комнат", 22, () => gm.SetEndless(false), out _, Weight.Bold, IconId.Target));
+            modeButtons.Add(UiKit.Button("ModeEndless", ct, new Vector2(0f, 0f), new Vector2(0f, 0f), new Vector2(pad + mw + 10f, pad + 128f), new Vector2(mw, 60f),
+                "Бесконечно", 22, () => gm.SetEndless(true), out _, Weight.Bold, IconId.Ricochet));
+
             var start = UiKit.Button("Start", ct, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, pad), new Vector2(inner, 112f),
                 "В БОЙ", 50, () => gm.StartRun(), out _, Weight.Black);
             start.GetComponent<Image>().color = new Color(0.1f, 0.42f, 0.5f, 1f);
@@ -191,13 +201,16 @@ namespace PulyaDura
 
             UiKit.KeyHints("Controls", garageRoot, BC, BC, new Vector2(0f, 40f), new[]
             {
-                ("WASD", "ехать"), ("SHIFT", "тихо"), ("МЫШЬ", "целиться"), ("ЛКМ", "огонь"), ("ПРОБЕЛ", "скилл"),
+                ("WASD", "ехать"), ("SHIFT", "крадучись"), ("МЫШЬ", "целиться"), ("ЛКМ", "огонь"), ("ПРОБЕЛ", "скилл"), ("TAB", "режим"),
             }, 22);
+            // Авторы музыки: лицензия CC BY требует указать автора там, где звучит трек
+            UiKit.Text("MusicCredits", garageRoot, new Vector2(1f, 0f), new Vector2(1f, 0f), new Vector2(-40f, 14f), new Vector2(1100f, 22f),
+                "Музыка: Marsel Minga — Drum Machine Battle (CC BY-NC-ND 4.0) · Monplaisir — Turbo Rallye Clicker 4000 (CC0)", 15, UiKit.Muted, TextAnchor.LowerRight, Weight.Mono);
         }
 
         Image Stat(Transform parent, string name, float y, float pad, float inner)
         {
-            UiKit.Text(name, parent, TL, ML, new Vector2(pad, y), new Vector2(150f, 24f), name, 16, UiKit.Muted, TextAnchor.MiddleLeft, Weight.Mono);
+            UiKit.Text(name, parent, TL, ML, new Vector2(pad, y), new Vector2(150f, 24f), name, 19, UiKit.Muted, TextAnchor.MiddleLeft, Weight.Mono);
             return UiKit.Bar(name + "Bar", parent, TL, ML, new Vector2(pad + 150f, y), new Vector2(inner - 150f, 6f), UiKit.Accent);
         }
 
@@ -216,11 +229,11 @@ namespace PulyaDura
             statRate.fillAmount = Mathf.Clamp01(Mathf.Sqrt(0.17f / (t.reload + t.chargeTime)));
             statBounces.fillAmount = t.bounces / 3f;
 
-            float bestTime = PlayerPrefs.GetFloat("best_time", 0f);
-            int bestRooms = PlayerPrefs.GetInt("best_rooms", 0);
+            Highlight(modeButtons, gm.Endless ? 1 : 0);
             garageBoard.text = BoardText(5, -1);
-            recordText.text = bestTime > 0f ? $"РЕКОРД  {FormatTime(bestTime)}"
-                : bestRooms > 0 ? $"РЕКОРД  {bestRooms}/{gm.RoomCount} КОМНАТ" : "";
+            // Рекорд — первая строка таблицы, чтобы цифры не расходились
+            var top = Leaderboard.Top;
+            recordText.text = top.Count > 0 ? $"РЕКОРД  {top[0].score} ОЧКОВ" : "";
         }
 
         static void Highlight(List<Button> buttons, int selected)
@@ -253,9 +266,10 @@ namespace PulyaDura
         {
             damageFlash = UiKit.Fill(UiKit.Stretch("DamageFlash", hudRoot), new Color(1f, 0.2f, 0.05f, 0f));
 
-            roomNumber = UiKit.Text("RoomNumber", hudRoot, TL, TL, new Vector2(48f, -34f), new Vector2(600f, 26f), "", 20, UiKit.Accent, TextAnchor.UpperLeft, Weight.Mono);
+            roomNumber = UiKit.Text("RoomNumber", hudRoot, TL, TL, new Vector2(48f, -30f), new Vector2(600f, 30f), "", 24, UiKit.Accent, TextAnchor.UpperLeft, Weight.Mono);
             roomTitle = UiKit.Text("RoomTitle", hudRoot, TL, TL, new Vector2(48f, -60f), new Vector2(800f, 50f), "", 40, UiKit.TextColor, TextAnchor.UpperLeft, Weight.Black);
             UiKit.Shadow(roomTitle);
+            enemyCounter = UiKit.Text("Enemies", hudRoot, TL, TL, new Vector2(48f, -112f), new Vector2(400f, 30f), "", 22, UiKit.Enemy, TextAnchor.UpperLeft, Weight.Mono);
 
             hintPanel = UiKit.Panel("HintPanel", hudRoot, TC, TC, new Vector2(0f, -30f), new Vector2(600f, 56f));
             hint = UiKit.Text("Hint", hintPanel.transform, C, C, Vector2.zero, new Vector2(1200f, 50f), "", 26, UiKit.TextColor, TextAnchor.MiddleCenter, Weight.Medium);
@@ -278,28 +292,31 @@ namespace PulyaDura
 
             // Приборная панель слева внизу
             var dash = UiKit.Panel("Dashboard", hudRoot, BL, BL, new Vector2(40f, 40f), new Vector2(430f, 140f)).transform;
-            for (int i = 0; i < cfg.lives; i++)
+            for (int i = 0; i < GameManager.MaxLives; i++)
                 lifeIcons.Add(UiKit.Icon("Life", dash, TL, TL, new Vector2(18f + i * 40f, -12f), 38f, IconId.Tank, UiKit.Danger));
             noiseIcon = UiKit.Icon("Noise", dash, TR, TR, new Vector2(-132f, -18f), 26f, IconId.Quiet, UiKit.Muted);
-            noiseLabel = UiKit.Text("NoiseLabel", dash, TR, TR, new Vector2(-20f, -18f), new Vector2(110f, 26f), "", 16, UiKit.Muted, TextAnchor.MiddleRight, Weight.Mono);
+            noiseLabel = UiKit.Text("NoiseLabel", dash, TR, TR, new Vector2(-20f, -18f), new Vector2(110f, 26f), "", 20, UiKit.Muted, TextAnchor.MiddleRight, Weight.Mono);
 
             UiKit.Icon("Armor", dash, TL, ML, new Vector2(20f, -72f), 26f, IconId.Armor, UiKit.Accent);
             hpRow = UiKit.Rect("Hp", dash, TL, ML, new Vector2(60f, -72f), new Vector2(350f, 14f));
 
             weaponIcon = UiKit.Icon("Weapon", dash, TL, ML, new Vector2(20f, -112f), 26f, IconId.Cannon, UiKit.TextColor);
-            weaponLabel = UiKit.Text("WeaponLabel", dash, TL, ML, new Vector2(60f, -106f), new Vector2(300f, 22f), "", 16, UiKit.Muted, TextAnchor.MiddleLeft, Weight.Mono);
+            weaponLabel = UiKit.Text("WeaponLabel", dash, TL, ML, new Vector2(60f, -106f), new Vector2(300f, 24f), "", 20, UiKit.Muted, TextAnchor.MiddleLeft, Weight.Mono);
             weaponBar = UiKit.Bar("Reload", dash, TL, ML, new Vector2(60f, -122f), new Vector2(350f, 4f), UiKit.TextColor);
 
             // Плитка скилла с круговой перезарядкой
             abilityTile = UiKit.Panel("Ability", hudRoot, BL, BL, new Vector2(482f, 40f), new Vector2(140f, 140f));
-            abilityFill = UiKit.Fill(UiKit.Stretch("Cooldown", abilityTile.transform), UiKit.AccentDim);
+            // Перезарядка затемняет плитку: пустая и светлая — значит готово
+            abilityFill = UiKit.Fill(UiKit.Stretch("Cooldown", abilityTile.transform), new Color(0f, 0f, 0f, 0.65f));
             abilityFill.sprite = Icons.Panel;
             abilityFill.type = Image.Type.Filled;
             abilityFill.fillMethod = Image.FillMethod.Radial360;
             abilityFill.fillOrigin = (int)Image.Origin360.Top;
             abilityFill.fillClockwise = false;
             abilityIcon = UiKit.Icon("Icon", abilityTile.transform, C, C, new Vector2(0f, 14f), 62f, IconId.Mirror, UiKit.TextColor);
-            abilityKey = UiKit.Text("Key", abilityTile.transform, BC, BC, new Vector2(0f, 12f), new Vector2(140f, 22f), "ПРОБЕЛ", 15, UiKit.Muted, TextAnchor.MiddleCenter, Weight.Mono);
+            abilityIcon.rectTransform.anchoredPosition = new Vector2(0f, 22f);
+            abilityKey = UiKit.Text("Key", abilityTile.transform, BC, BC, new Vector2(0f, 8f), new Vector2(136f, 42f), "ПРОБЕЛ", 18, UiKit.Muted, TextAnchor.MiddleCenter, Weight.Mono);
+            abilityKey.lineSpacing = 0.85f;
         }
 
         void RebuildHpSegments(int count)
@@ -323,7 +340,7 @@ namespace PulyaDura
 
         public void ShowRoom(int index, int count, string title, string roomHint)
         {
-            roomNumber.text = $"{index + 1:00} / {count:00}";
+            roomNumber.text = count > 0 ? $"{index + 1:00} / {count:00}" : "БЕСКОНЕЧНЫЙ РЕЖИМ";
             roomTitle.text = title;
             hint.text = roomHint;
             hintPanel.rectTransform.sizeDelta = new Vector2(hint.preferredWidth + 64f, 56f);
@@ -345,8 +362,14 @@ namespace PulyaDura
                 if (slotGo.activeSelf != buffValues[i] > 0) slotGo.SetActive(buffValues[i] > 0);
                 buffSlots[i].count.text = "×" + buffValues[i];
             }
+            // Жизни белые, последняя — красная. Пустые слоты показываем только до стартового числа
+            int slots = Mathf.Max(gm.Lives, cfg.lives);
             for (int i = 0; i < lifeIcons.Count; i++)
-                lifeIcons[i].color = i < gm.Lives ? UiKit.Danger : UiKit.Faint;
+            {
+                lifeIcons[i].gameObject.SetActive(i < slots);
+                lifeIcons[i].color = i < gm.Lives ? (gm.Lives == 1 ? UiKit.Danger : UiKit.TextColor) : UiKit.Faint;
+            }
+            enemyCounter.text = gm.EnemiesTotal > 0 ? $"ВРАГИ  {gm.EnemiesLeft} / {gm.EnemiesTotal}" : "";
 
             float age = Time.unscaledTime - hintTime;
             float ha = age < 6f ? 1f : Mathf.Clamp01(1f - (age - 6f));
@@ -370,6 +393,8 @@ namespace PulyaDura
                 abilityIcon.sprite = Icons.Get(IconOf(p.Hull.ability));
                 abilityFill.fillAmount = 1f - p.Ability.Cooldown01;
                 abilityIcon.color = ready ? Color.white : UiKit.Muted;
+                abilityKey.text = p.Hull.abilityTitle.ToUpper() + "\n<size=13>ПРОБЕЛ</size>";
+                abilityKey.color = ready ? UiKit.Accent : UiKit.Muted;
                 UiKit.FrameOf(abilityTile).color = ready ? UiKit.Accent : UiKit.Line;
                 abilityKey.color = ready ? UiKit.Accent : UiKit.Muted;
                 float pulse = ready ? 1f + Mathf.Sin(Time.unscaledTime * 4f) * 0.03f : 1f;
@@ -594,12 +619,13 @@ namespace PulyaDura
 
         void BuildPause()
         {
-            UiKit.Fill(pauseRoot, new Color(0.01f, 0.015f, 0.025f, 0.78f)).raycastTarget = true;
+            UiKit.Fill(pauseRoot, new Color(0.01f, 0.015f, 0.025f, 0.9f)).raycastTarget = true;
             UiKit.Text("Title", pauseRoot, C, C, new Vector2(0f, 180f), new Vector2(800f, 130f), "ПАУЗА", 104, UiKit.TextColor, TextAnchor.MiddleCenter, Weight.Black);
-            UiKit.Button("Resume", pauseRoot, C, C, new Vector2(0f, 40f), new Vector2(440f, 80f), "Продолжить", 30, () => gm.TogglePause(), out _);
-            UiKit.Button("Restart", pauseRoot, C, C, new Vector2(0f, -56f), new Vector2(440f, 80f), "Заново", 30, () => gm.RestartRun(), out _);
-            UiKit.Button("Garage", pauseRoot, C, C, new Vector2(0f, -152f), new Vector2(440f, 80f), "В гараж", 30, () => gm.EnterGarage(), out _);
-            UiKit.KeyHints("Keys", pauseRoot, C, C, new Vector2(0f, -250f), new[] { ("ESC", "продолжить"), ("R", "заново") }, 20);
+            UiKit.Button("Resume", pauseRoot, C, C, new Vector2(0f, 60f), new Vector2(440f, 80f), "Продолжить", 30, () => gm.TogglePause(), out _);
+            UiKit.Button("RestartRoom", pauseRoot, C, C, new Vector2(0f, -36f), new Vector2(440f, 80f), "Комната заново", 30, () => gm.RestartRoom(), out _);
+            UiKit.Button("Restart", pauseRoot, C, C, new Vector2(0f, -132f), new Vector2(440f, 80f), "Забег заново", 30, () => gm.RestartRun(), out _);
+            UiKit.Button("Garage", pauseRoot, C, C, new Vector2(0f, -228f), new Vector2(440f, 80f), "В гараж", 30, () => gm.EnterGarage(), out _);
+            UiKit.KeyHints("Keys", pauseRoot, C, C, new Vector2(0f, -320f), new[] { ("ESC", "продолжить"), ("R", "забег заново") }, 20);
             pauseRoot.gameObject.SetActive(false);
         }
 
@@ -607,7 +633,7 @@ namespace PulyaDura
 
         void BuildResult()
         {
-            UiKit.Fill(resultRoot, new Color(0.01f, 0.015f, 0.025f, 0.86f)).raycastTarget = true;
+            UiKit.Fill(resultRoot, new Color(0.01f, 0.015f, 0.025f, 0.94f)).raycastTarget = true;
             resultTitle = UiKit.Text("Title", resultRoot, C, C, new Vector2(0f, 290f), new Vector2(1400f, 140f), "", 120, UiKit.Accent, TextAnchor.MiddleCenter, Weight.Black);
             UiKit.Shadow(resultTitle, 5f, 0.6f);
 
@@ -615,15 +641,16 @@ namespace PulyaDura
             resultTime = Tile("ВРЕМЯ", IconId.Clock, 0f);
             resultRicochets = Tile("РИКОШЕТОМ", IconId.Ricochet, 300f);
             // У правого края: на 4:3 не наезжает на плитки
-            var board = UiKit.Panel("Board", resultRoot, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-40f, 40f), new Vector2(360f, 330f));
-            UiKit.Text("Head", board.transform, TL, TL, new Vector2(22f, -20f), new Vector2(320f, 26f), "ТАБЛИЦА ЗАБЕГОВ", 18, UiKit.Muted, TextAnchor.UpperLeft, Weight.Mono);
-            resultBoard = UiKit.Text("Rows", board.transform, TL, TL, new Vector2(22f, -56f), new Vector2(330f, 270f), "", 18, UiKit.TextColor, TextAnchor.UpperLeft, Weight.Mono);
+            var board = UiKit.Panel("Board", resultRoot, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-40f, 40f), new Vector2(420f, 330f));
+            UiKit.Text("Head", board.transform, TL, TL, new Vector2(22f, -20f), new Vector2(380f, 26f), "ТАБЛИЦА ЗАБЕГОВ", 18, UiKit.Muted, TextAnchor.UpperLeft, Weight.Mono);
+            resultBoard = UiKit.Text("Rows", board.transform, TL, TL, new Vector2(22f, -56f), new Vector2(390f, 270f), "", 18, UiKit.TextColor, TextAnchor.UpperLeft, Weight.Mono);
             resultExtra = UiKit.Text("Extra", resultRoot, C, C, new Vector2(0f, -40f), new Vector2(1000f, 40f), "", 22, UiKit.Muted, TextAnchor.MiddleCenter, Weight.Mono);
             resultRecord = UiKit.Text("Record", resultRoot, C, C, new Vector2(0f, -100f), new Vector2(1000f, 50f), "", 30, UiKit.Danger, TextAnchor.MiddleCenter, Weight.Bold);
 
             UiKit.Button("Again", resultRoot, C, C, new Vector2(-240f, -230f), new Vector2(440f, 92f), "Ещё раз", 36, () => gm.RestartRun(), out _, Weight.Black);
             UiKit.Button("Garage", resultRoot, C, C, new Vector2(240f, -230f), new Vector2(440f, 92f), "В гараж", 36, () => gm.EnterGarage(), out _);
-            UiKit.KeyHints("Keys", resultRoot, C, C, new Vector2(0f, -320f), new[] { ("R", "ещё раз"), ("G", "в гараж") }, 20);
+            continueButton = UiKit.Button("Continue", resultRoot, C, C, new Vector2(0f, -330f), new Vector2(560f, 70f), "Продолжить с комнаты", 28, () => gm.ContinueRun(), out _);
+            resultKeys = UiKit.Text("Keys", resultRoot, C, C, new Vector2(0f, -410f), new Vector2(900f, 30f), "", 20, UiKit.Muted, TextAnchor.MiddleCenter, Weight.Mono);
             resultRoot.gameObject.SetActive(false);
         }
 
@@ -632,7 +659,7 @@ namespace PulyaDura
             var box = UiKit.Panel("Tile", resultRoot, C, C, new Vector2(x, 110f), new Vector2(270f, 170f));
             UiKit.Icon("Icon", box.transform, TC, TC, new Vector2(0f, -16f), 32f, icon, UiKit.Muted);
             var value = UiKit.Text("Value", box.transform, C, C, new Vector2(0f, -4f), new Vector2(260f, 70f), "", 54, UiKit.TextColor, TextAnchor.MiddleCenter, Weight.Mono);
-            UiKit.Text("Label", box.transform, BC, BC, new Vector2(0f, 14f), new Vector2(260f, 26f), label, 16, UiKit.Muted, TextAnchor.MiddleCenter, Weight.Mono);
+            UiKit.Text("Label", box.transform, BC, BC, new Vector2(0f, 14f), new Vector2(260f, 26f), label, 20, UiKit.Muted, TextAnchor.MiddleCenter, Weight.Mono);
             return value;
         }
 
@@ -643,12 +670,16 @@ namespace PulyaDura
             bannerRoot.gameObject.SetActive(false);
             resultRoot.gameObject.SetActive(true);
             ClearTransient();
-            resultTitle.text = win ? "ПОБЕДА" : "ПРОВАЛ";
-            resultTitle.color = win ? UiKit.Accent : UiKit.Danger;
+            resultTitle.text = win ? "ПОБЕДА" : gm.Endless ? $"ГЛУБИНА {s.rooms + 1}" : "ПРОВАЛ";
+            resultTitle.color = win || gm.Endless ? UiKit.Accent : UiKit.Danger;
+            bool canContinue = gm.ContinueRoom >= 0;
+            continueButton.gameObject.SetActive(canContinue);
+            if (canContinue) continueButton.GetComponentInChildren<Text>().text = $"Продолжить с комнаты {gm.ContinueRoom + 1}";
+            resultKeys.text = canContinue ? "R — ещё раз   ·   G — в гараж   ·   C — продолжить (без таблицы)" : "R — ещё раз   ·   G — в гараж";
             resultTime.text = FormatTime(s.time);
             resultKills.text = s.score.ToString();
             resultRicochets.text = s.ricochetKills.ToString();
-            resultExtra.text = $"КОМНАТ {s.rooms}/{gm.RoomCount}   ·   ПОДБИТО {s.kills}   ·   СЕРИЯ {s.bestStreak}   ·   СМЕРТЕЙ {s.deaths}";
+            resultExtra.text = $"КОМНАТ {(gm.Endless ? s.rooms.ToString() : s.rooms + "/" + gm.RoomCount)}   ·   ПОДБИТО {s.kills}   ·   СЕРИЯ {s.bestStreak}   ·   СМЕРТЕЙ {s.deaths}";
             resultBoard.text = BoardText(10, place);
             // Лучшее достижение: время полного прохождения важнее числа комнат
             resultRecord.text = record ? "НОВЫЙ РЕКОРД!"
@@ -670,7 +701,8 @@ namespace PulyaDura
             for (int i = 0; i < Mathf.Min(rows, top.Count); i++)
             {
                 var r = top[i];
-                string line = $"{i + 1,2}  {r.score,6}  {FormatTime(r.time)}  {(r.win ? "ПОБЕДА" : r.rooms + "/8")}";
+                string result = r.endless ? $"∞ {r.rooms}" : r.win ? "ПОБЕДА" : $"{r.rooms}/{GameManager.I.RoomCount}";
+                string line = $"{i + 1,2}  {r.score,6}  {FormatTime(r.time)}  {result}";
                 sb.AppendLine(i + 1 == place ? $"<color=#FF8F38>{line}  ◄</color>" : line);
             }
             return sb.ToString();

@@ -18,7 +18,7 @@ MonoBehaviour:
     title: "\u0421\u0442\u0440\u0438\u0436"
     description: "\u0411\u044B\u0441\u0442\u0440\u044B\u0439, 3 \u0431\u0440\u043E\u043D\u0438"
     style: 0
-    maxHp: 3
+    maxHp: 4
     speed: 6.6
     turnSpeed: 540
     size: {x: 0.95, y: 1.15}
@@ -147,8 +147,9 @@ MonoBehaviour:
     hullId: barsuk
     turretId: cannon
     behaviour: 0
-    accent: {r: 1.2, g: 1.2, b: 1.2, a: 1}
+    accent: {r: 2.2, g: 0.6, b: 0.5, a: 1}
     hpOverride: 2
+    damageOverride: 0
     fireInterval: 1.6
     aimError: 4
     turretTurnSpeed: 150
@@ -167,8 +168,9 @@ MonoBehaviour:
     hullId: strizh
     turretId: cannon
     behaviour: 1
-    accent: {r: 2.6, g: 2.4, b: 0.3, a: 1}
+    accent: {r: 3, g: 1, b: 0.3, a: 1}
     hpOverride: 2
+    damageOverride: 1
     fireInterval: 3
     aimError: 9
     turretTurnSpeed: 90
@@ -189,6 +191,7 @@ MonoBehaviour:
     behaviour: 1
     accent: {r: 3, g: 1.6, b: 0.2, a: 1}
     hpOverride: 4
+    damageOverride: 1
     fireInterval: 1.8
     aimError: 5
     turretTurnSpeed: 120
@@ -209,6 +212,7 @@ MonoBehaviour:
     behaviour: 2
     accent: {r: 3, g: 0.35, b: 0.25, a: 1}
     hpOverride: 0
+    damageOverride: 0
     fireInterval: 0.9
     aimError: 7
     turretTurnSpeed: 200
@@ -229,6 +233,7 @@ MonoBehaviour:
     behaviour: 2
     accent: {r: 1.8, g: 0.4, b: 3, a: 1}
     hpOverride: 0
+    damageOverride: 0
     fireInterval: 1.6
     aimError: 4
     turretTurnSpeed: 160
@@ -247,8 +252,9 @@ MonoBehaviour:
     hullId: barsuk
     turretId: cannon
     behaviour: 1
-    accent: {r: 0.5, g: 3, b: 0.6, a: 1}
+    accent: {r: 3, g: 0.25, b: 0.9, a: 1}
     hpOverride: 0
+    damageOverride: 0
     fireInterval: 2.4
     aimError: 1.5
     turretTurnSpeed: 110
@@ -267,8 +273,9 @@ MonoBehaviour:
     hullId: barsuk
     turretId: cannon
     behaviour: 2
-    accent: {r: 1.4, g: 1.9, b: 3, a: 1}
+    accent: {r: 2.6, g: 0.5, b: 1.4, a: 1}
     hpOverride: 5
+    damageOverride: 0
     fireInterval: 1.9
     aimError: 4
     turretTurnSpeed: 130
@@ -283,12 +290,13 @@ MonoBehaviour:
     lead: 0.8
     frontShield: 1
   - symbol: B
-    title: "\u0411\u0435\u0433\u0435\u043C\u043E\u0442"
+    title: "\u041C\u0430\u043C\u043E\u043D\u0442"
     hullId: begemot
     turretId: rail
     behaviour: 2
     accent: {r: 3, g: 0.3, b: 1.6, a: 1}
     hpOverride: 14
+    damageOverride: 0
     fireInterval: 2.6
     aimError: 2
     turretTurnSpeed: 90
@@ -354,7 +362,7 @@ MonoBehaviour:
   playerLightIntensity: 3.2
   ambient: {r: 0.025, g: 0.03, b: 0.045, a: 1}
   floorColor: {r: 0.07, g: 0.075, b: 0.09, a: 1}
-  floorGridGlow: {r: 0.012, g: 0.02, b: 0.035, a: 1}
+  floorGridGlow: {r: 0.004, g: 0.007, b: 0.012, a: 1}
   wallColor: {r: 0.08, g: 0.085, b: 0.1, a: 1}
   crateColor: {r: 0.17, g: 0.11, b: 0.06, a: 1}
   echoColor: {r: 0.25, g: 0.85, b: 1.5, a: 1}

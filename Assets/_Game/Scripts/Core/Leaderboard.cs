@@ -15,6 +15,7 @@ namespace PulyaDura
         public string hull;
         public string turret;
         public long ticks;
+        public bool endless;
 
         public string Date => new DateTime(ticks).ToString("dd.MM HH:mm");
     }
@@ -26,7 +27,8 @@ namespace PulyaDura
     /// </summary>
     public static class Leaderboard
     {
-        const string Key = "leaderboard_v1";
+        /// <summary>Ключ в PlayerPrefs. Автотест подменяет его, чтобы не засорять настоящую таблицу.</summary>
+        public static string Key = "leaderboard_v1";
         const int Size = 10;
 
         [Serializable]

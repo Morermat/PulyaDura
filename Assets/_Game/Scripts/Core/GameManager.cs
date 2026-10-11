@@ -39,6 +39,15 @@ namespace PulyaDura
         public int RoomCount => rooms.Count;
         public int Lives { get; private set; }
         public RunStats Stats { get; private set; } = new();
+        /// <summary>Бесконечный режим: комнаты генерируются, сложность растёт, забег идёт до последней жизни.</summary>
+        public bool Endless { get; private set; }
+        public RoomData CurrentRoom { get; private set; }
+        /// <summary>Сколько врагов было в комнате в начале (для счётчика в HUD).</summary>
+        public int EnemiesTotal { get; private set; }
+        public int EnemiesLeft => EnemiesAlive();
+        /// <summary>С какой комнаты можно продолжить после провала (−1 — нельзя).</summary>
+        public int ContinueRoom { get; private set; } = -1;
+        public const int MaxLives = 5;
         public int HullIndex { get; private set; }
         public int TurretIndex { get; private set; }
         public Transform GarageTank => garage.Tank;
@@ -52,6 +61,9 @@ namespace PulyaDura
         Coroutine flow;
         int streak;
         float streakTime;
+        readonly List<RoomData> endlessRooms = new();
+        int endlessSeed;
+        bool recordRun = true;
 
         void Awake()
         {
@@ -80,6 +92,7 @@ namespace PulyaDura
 
             HullIndex = Mathf.Clamp(PlayerPrefs.GetInt("hull", 1), 0, config.hulls.Count - 1);
             TurretIndex = Mathf.Clamp(PlayerPrefs.GetInt("turret", 0), 0, config.turrets.Count - 1);
+            Endless = PlayerPrefs.GetInt("endless", 0) == 1;
 
             ui = gameObject.AddComponent<GameUI>();
             ui.Build(this);
@@ -180,24 +193,60 @@ namespace PulyaDura
             ui.RefreshGarage();
         }
 
-        public void StartRun() => BeginRun(0);
-        public void RestartRun() => BeginRun(0);
+        public void SetEndless(bool on)
+        {
+            Endless = on;
+            PlayerPrefs.SetInt("endless", on ? 1 : 0);
+            Sfx.I.Play(SfxId.Select);
+            ui.RefreshGarage();
+        }
 
-        /// <summary>Новый забег с нужной комнаты. Для отладки, автотеста и демо на защите: F1–F8 в редакторе.</summary>
+        public void StartRun() => BeginRun(0, true);
+        public void RestartRun() => BeginRun(0, true);
+
+        /// <summary>Переиграть текущую комнату: жизни и очки сохраняются. Это R в бою.</summary>
+        public void RestartRoom()
+        {
+            if (State != GameState.Playing) return;
+            LoadRoom(RoomIndex);
+        }
+
+        /// <summary>Продолжить с комнаты, где кончились жизни. Такой забег не попадает в таблицу.</summary>
+        public void ContinueRun()
+        {
+            if (ContinueRoom < 0 || Endless) return;
+            BeginRun(ContinueRoom, false);
+        }
+
+        /// <summary>Новый забег с нужной комнаты сюжета. Для отладки, автотеста и демо на защите: F1–F8 в редакторе.</summary>
         public void DebugLoadRoom(int index)
         {
             if (index < 0 || index >= rooms.Count) return;
-            if (State is GameState.Garage or GameState.Result) BeginRun(index);
+            Endless = false;
+            if (State is GameState.Garage or GameState.Result) BeginRun(index, false);
             else LoadRoom(index);
         }
 
-        void BeginRun(int room)
+        void BeginRun(int room, bool record)
         {
             if (rooms.Count == 0) return;
             Stats = new RunStats();
             Lives = config.lives;
+            recordRun = record;
+            ContinueRoom = -1;
+            endlessRooms.Clear();
+            endlessSeed = Environment.TickCount;
             garage.Hide();
             LoadRoom(room);
+        }
+
+        /// <summary>Комната по номеру: из rooms.txt или из генератора (бесконечный режим). Сгенерированные запоминаются,
+        /// чтобы после смерти вернуться в ту же комнату.</summary>
+        RoomData RoomAt(int index)
+        {
+            if (!Endless) return rooms[index];
+            while (endlessRooms.Count <= index) endlessRooms.Add(RoomGenerator.Generate(endlessRooms.Count + 1, endlessSeed));
+            return endlessRooms[index];
         }
 
         void LoadRoom(int index)
@@ -205,8 +254,10 @@ namespace PulyaDura
             ResetWorld();
             RoomIndex = index;
             streak = 0;
-            var room = rooms[index];
+            var room = RoomAt(index);
+            CurrentRoom = room;
             level.Build(room);
+            EnemiesTotal = level.EnemySpawns.Count;
 
             Player = Tank.Spawn(Team.Player, config.hulls[HullIndex], config.turrets[TurretIndex], null, level.PlayerSpawn, Quaternion.identity, level.Root);
             foreach (var (enemy, pos) in level.EnemySpawns)
@@ -222,7 +273,7 @@ namespace PulyaDura
             Sfx.I.Play(SfxId.Mirror, level.PlayerSpawn, 0.5f, 0.6f);
             State = GameState.Playing;
             ui.ShowHud();
-            ui.ShowRoom(index, rooms.Count, room.title, room.hint);
+            ui.ShowRoom(index, Endless ? 0 : rooms.Count, room.title, room.hint);
         }
 
         void Update()
@@ -237,18 +288,20 @@ namespace PulyaDura
             {
                 case GameState.Garage:
                     if (confirm) StartRun();
+                    if (kb != null && kb.tabKey.wasPressedThisFrame) SetEndless(!Endless);
                     break;
                 case GameState.Playing:
                     if (!Paused) Stats.time += Time.deltaTime;
                     if (back || (pad != null && pad.startButton.wasPressedThisFrame)) TogglePause();
-                    if (restart) RestartRun();
-                    break;
-                case GameState.RoomClear:
-                case GameState.Dead:
-                    if (restart) RestartRun();
+                    if (restart)
+                    {
+                        if (Paused) RestartRun();
+                        else RestartRoom();
+                    }
                     break;
                 case GameState.Result:
                     if (restart || confirm) RestartRun();
+                    if (kb != null && kb.cKey.wasPressedThisFrame) ContinueRun();
                     if (back || (kb != null && kb.gKey.wasPressedThisFrame)) EnterGarage();
                     break;
             }
@@ -305,7 +358,7 @@ namespace PulyaDura
             if (EnemiesAlive() == 0 && State == GameState.Playing) RoomCleared();
         }
 
-        static int EnemiesAlive()
+        public static int EnemiesAlive()
         {
             int alive = 0;
             foreach (var other in Tank.All)
@@ -320,7 +373,11 @@ namespace PulyaDura
             Lives--;
             State = GameState.Dead;
             bool self = d.source != null && d.source == Player;
-            ui.Banner(self ? "ПУЛЯ — ДУРА" : "ПОДБИТ", Lives > 0 ? $"Осталось жизней: {Lives}" : "Жизни кончились", UiKit.Danger);
+            // Причина смерти: враги невидимы, поэтому говорим, кто и как попал
+            string cause = self ? "Своя пуля после отскока"
+                : d.source != null && d.source.Enemy != null ? d.source.Enemy.title + (d.bounces > 0 ? " · через отскок" : "")
+                : "Взрыв";
+            ui.Banner(self ? "ПУЛЯ — ДУРА" : "ПОДБИТ", $"{cause} · " + (Lives > 0 ? $"жизней: {Lives}" : "жизни кончились"), UiKit.Danger);
             // Убил сам себя — голос медленно и с издёвкой произносит название игры
             if (self) Announcer.I.Chant(2, slam: false, pitch: 0.85f, variant: 0);
             AddScore(-150, null);
@@ -329,22 +386,32 @@ namespace PulyaDura
             flow = StartCoroutine(After(1.7f, () =>
             {
                 if (Lives > 0) LoadRoom(RoomIndex);
-                else ShowResult(false);
+                else
+                {
+                    ContinueRoom = Endless ? -1 : RoomIndex;
+                    ShowResult(false);
+                }
             }));
         }
 
         void RoomCleared()
         {
             State = GameState.RoomClear;
-            Stats.rooms = Mathf.Min(Stats.rooms + 1, RoomCount);
+            Stats.rooms = Endless ? Stats.rooms + 1 : Mathf.Min(Stats.rooms + 1, RoomCount);
             AddScore(250, null);
             if (Player != null) Player.Invulnerable = true;
             TimeController.I.SlowMo(0.3f, 0.9f);
             Sfx.I.Play(SfxId.RoomClear);
-            bool last = RoomIndex + 1 >= rooms.Count;
+            bool last = !Endless && RoomIndex + 1 >= rooms.Count;
             if (Player != null) EchoSystem.I.RevealAll(Player.transform.position, 0.9f);
             // Распев в такт музыке, как в концовке SUPERHOT: после последней комнаты — длиннее
-            string next = last ? "ВСЕ КОМНАТЫ ЧИСТЫ" : $"ДАЛЬШЕ: {rooms[RoomIndex + 1].title.ToUpper()}";
+            string next = last ? "ВСЕ КОМНАТЫ ЧИСТЫ" : $"ДАЛЬШЕ: {RoomAt(RoomIndex + 1).title.ToUpper()}";
+            // В бесконечном режиме каждые 5 комнат — жизнь в награду
+            if (Endless && (RoomIndex + 1) % 5 == 0 && Lives < MaxLives)
+            {
+                Lives++;
+                next += "  ·  +1 ЖИЗНЬ";
+            }
             float chant = Announcer.I.Chant(last ? 6 : 4, subtitle: next);
             flow = StartCoroutine(After(chant + 0.25f, () =>
             {
@@ -357,16 +424,21 @@ namespace PulyaDura
         {
             ResetWorld();
             State = GameState.Result;
+            if (!recordRun)
+            {
+                ui.ShowResult(win, Stats, false, PlayerPrefs.GetFloat("best_time", 0f), PlayerPrefs.GetInt("best_rooms", 0), 0);
+                return;
+            }
             float bestTime = PlayerPrefs.GetFloat("best_time", 0f);
             int bestRooms = PlayerPrefs.GetInt("best_rooms", 0);
             bool record = false;
-            if (win && (bestTime <= 0f || Stats.time < bestTime))
+            if (win && !Endless && (bestTime <= 0f || Stats.time < bestTime))
             {
                 bestTime = Stats.time;
                 PlayerPrefs.SetFloat("best_time", bestTime);
                 record = true;
             }
-            if (Stats.rooms > bestRooms)
+            if (!Endless && Stats.rooms > bestRooms)
             {
                 bestRooms = Stats.rooms;
                 PlayerPrefs.SetInt("best_rooms", bestRooms);
@@ -374,9 +446,9 @@ namespace PulyaDura
             }
             PlayerPrefs.Save();
             if (win) AddScore(Mathf.Max(0, Mathf.RoundToInt((300f - Stats.time) * 10f)), null);
-            int place = Leaderboard.Add(new RunRecord
+            int place = Stats.score <= 0 ? 0 : Leaderboard.Add(new RunRecord
             {
-                score = Stats.score, time = Stats.time, rooms = Stats.rooms, win = win, kills = Stats.kills,
+                score = Stats.score, time = Stats.time, rooms = Stats.rooms, win = win, kills = Stats.kills, endless = Endless,
                 hull = config.hulls[HullIndex].title, turret = config.turrets[TurretIndex].title, ticks = DateTime.Now.Ticks,
             });
             ui.ShowResult(win, Stats, record, bestTime, bestRooms, place);
