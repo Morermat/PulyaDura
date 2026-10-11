@@ -10,6 +10,12 @@ namespace PulyaDura
         HullConfig hull;
         float cooldown;
         float active;
+        bool wasReady = true;
+        readonly System.Collections.Generic.HashSet<Tank> rammed = new();
+        static readonly Collider[] ramBuffer = new Collider[8];
+
+        /// <summary>Скилл только что перезарядился (для вспышки плитки в HUD).</summary>
+        public float ReadySince { get; private set; } = -10f;
 
         public bool Ready => cooldown <= 0f;
         public float Cooldown01 => hull.abilityCooldown <= 0f ? 1f : 1f - Mathf.Clamp01(cooldown / hull.abilityCooldown);
@@ -36,8 +42,10 @@ namespace PulyaDura
             {
                 case AbilityType.Dash:
                     Vector3 dir = moveDir.sqrMagnitude > 0.01f ? moveDir.normalized : transform.forward;
-                    GetComponent<PlayerController>().Dash(dir, 20f, 0.16f);
+                    GetComponent<PlayerController>().Dash(dir, 26f, 0.2f);
                     tank.Invulnerable = true;
+                    tank.Dashing = true;
+                    rammed.Clear();
                     Fx.I.Sparks(transform.position + Vector3.up * 0.2f, -dir, GameManager.Cfg.playerAccent, 18, 6f);
                     Sfx.I.Play(SfxId.Dash, transform.position);
                     CameraRig.I.Kick(dir, 0.25f);
@@ -60,12 +68,44 @@ namespace PulyaDura
         void Update()
         {
             if (cooldown > 0f) cooldown -= Time.deltaTime;
+            if (Ready && !wasReady && tank.Team == Team.Player)
+            {
+                // Скилл готов: короткий звук, плитка в HUD вспыхивает
+                ReadySince = Time.time;
+                Sfx.I.Play(SfxId.Select, transform.position, 0.5f, 1.5f);
+            }
+            wasReady = Ready;
             if (active <= 0f) return;
+            if (tank.Dashing) Ram();
             active -= Time.deltaTime;
             if (active > 0f) return;
+            if (tank.Dashing)
+            {
+                // В конце рывка — волна эха: видно, куда выскочил
+                EchoSystem.I.Emit(transform.position, 6.5f, GameManager.Cfg.echoColor, 0.9f);
+                Sfx.I.Play(SfxId.Tink, transform.position, 0.6f, 0.75f);
+            }
             tank.Invulnerable = false;
+            tank.Dashing = false;
             tank.MirrorActive = false;
             tank.Visual.SetMirror(false);
+        }
+
+        /// <summary>Таран: враг, которого задел рывок, получает 2 урона (один раз за рывок).</summary>
+        void Ram()
+        {
+            int n = Physics.OverlapSphereNonAlloc(transform.position, 1.25f, ramBuffer, Layers.TankMask, QueryTriggerInteraction.Ignore);
+            for (int i = 0; i < n; i++)
+            {
+                if (!ramBuffer[i].TryGetComponent<Tank>(out var other) || other == tank || other.IsDead || other.Team == tank.Team) continue;
+                if (!rammed.Add(other)) continue;
+                Vector3 dir = Prims.Flat(other.transform.position - transform.position).normalized;
+                other.TakeDamage(new DamageInfo { amount = 2, source = tank, point = other.transform.position, direction = dir });
+                Fx.I.Sparks(other.transform.position + Vector3.up * 0.5f, dir, GameManager.Cfg.playerAccent, 22, 7f);
+                Sfx.I.Play(SfxId.Hit, other.transform.position, 1f, 0.8f);
+                CameraRig.I.Shake(0.35f);
+                if (tank.Team == Team.Player) GameManager.I.UI.Floating(other.transform.position + Vector3.up * 1.2f, "ТАРАН", UiKit.Accent, 30);
+            }
         }
     }
 

@@ -63,6 +63,9 @@ namespace PulyaDura
         public bool Invulnerable { get; set; }
         /// <summary>Пули отражаются от брони (зеркало).</summary>
         public bool MirrorActive { get; set; }
+        /// <summary>Идёт рывок: танк неуязвим, таранит врагов и сбивает пули.</summary>
+        public bool Dashing { get; set; }
+        float lastMirrorText = -10f;
 
         public Vector3 ShotOrigin
         {
@@ -133,6 +136,18 @@ namespace PulyaDura
         public void TakeDamage(DamageInfo info)
         {
             if (IsDead || Invulnerable) return;
+            if (MirrorActive)
+            {
+                // Пока горит зеркало, урона нет ни от чего: ни от рельсы, ни от взрыва
+                Visual.Flash();
+                Sfx.I.Play(SfxId.Mirror, transform.position, 0.6f, 1.6f);
+                if (Team == Team.Player && Time.time - lastMirrorText > 0.6f)
+                {
+                    lastMirrorText = Time.time;
+                    GameManager.I.UI.Floating(transform.position + Vector3.up * 1.4f, "ЗЕРКАЛО", UiKit.Accent, 28);
+                }
+                return;
+            }
             if (Team == Team.Player && info.amount < 50 && Time.time - lastHurt < 0.4f) return;
             if (ShieldCharges > 0)
             {

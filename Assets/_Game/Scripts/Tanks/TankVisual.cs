@@ -305,8 +305,8 @@ namespace PulyaDura
         void BuildHelpers(HullConfig hull, bool withLight)
         {
             float w = hull.size.x, l = hull.size.y;
-            bubbleSize = Mathf.Max(w, l) + 0.6f;
-            var shield = Prims.Part("ShieldBubble", PrimitiveType.Sphere, transform, new Vector3(0f, 0.45f, 0f), Vector3.one * (bubbleSize + 0.25f), Mats.Fx(new Color(0.3f, 0.9f, 2f) * 0.18f));
+            bubbleSize = ProjectileSystem.MirrorRadius * 2f;
+            var shield = Prims.Part("ShieldBubble", PrimitiveType.Sphere, transform, new Vector3(0f, 0.45f, 0f), Vector3.one * (Mathf.Max(w, l) + 0.85f), Mats.Fx(new Color(0.3f, 0.9f, 2f) * 0.18f));
             shield.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             shieldBubble = shield.transform;
             shieldBubble.gameObject.SetActive(false);

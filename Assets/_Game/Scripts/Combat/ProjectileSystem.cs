@@ -110,11 +110,14 @@ namespace PulyaDura
         /// <summary>Каждый отскок делает пулю ярче: видно, что она «заряжена» и опасна.</summary>
         Color ColorOf(Projectile p)
         {
-            if (p.power) return new Color(3.5f, 0.5f, 0.3f) * (1f + cfg.glowGrowthPerBounce * p.bouncesDone);
-            if (p.mark) return new Color(2.8f, 2.4f, 0.3f) * (1f + cfg.glowGrowthPerBounce * p.bouncesDone);
-            Color c = p.team == Team.Enemy ? cfg.bulletEnemy : p.bouncesDone > 0 ? cfg.bulletDanger : cfg.bulletPlayer;
-            return c * (1f + cfg.glowGrowthPerBounce * p.bouncesDone);
+            float glow = 1f + cfg.glowGrowthPerBounce * p.bouncesDone;
+            if (p.power) return new Color(3.5f, 0.5f, 0.3f) * glow;
+            if (p.mark) return new Color(1.3f, 2f, 3f) * glow;
+            return p.team == Team.Enemy ? cfg.bulletEnemy * glow : PlayerBulletColor(p.bouncesDone) * glow;
         }
+
+        /// <summary>Пуля игрока всегда синяя: с каждым отскоком светлее (ближе к белому), но не красная.</summary>
+        public Color PlayerBulletColor(int bounces) => Color.Lerp(cfg.bulletPlayer, new Color(2.2f, 2.7f, 3f), Mathf.Clamp01(bounces * 0.4f));
 
         float EchoRadius(Projectile p) => p.cfg.echoRadius * (1f + cfg.echoGrowthPerBounce * p.bouncesDone);
 
@@ -132,6 +135,8 @@ namespace PulyaDura
                 if (!p.dead) TryTeleport(p);
             }
             CancelCollidingShells();
+            ReflectByMirrors();
+            CutByDash();
             for (int i = active.Count - 1; i >= 0; i--)
             {
                 var p = active[i];
@@ -313,6 +318,66 @@ namespace PulyaDura
             int n = 0;
             foreach (var p in active) if (!p.dead) n++;
             return n;
+        }
+
+        /// <summary>Радиус зеркала: пуля разворачивается, едва коснувшись пузыря, а не корпуса.</summary>
+        public const float MirrorRadius = 1.45f;
+
+        /// <summary>
+        /// Зеркало: любая чужая пуля, влетевшая в пузырь, летит обратно в того, кто её выпустил
+        /// (если стрелок жив), и становится пулей владельца зеркала — заряженной, с отскоком.
+        /// </summary>
+        void ReflectByMirrors()
+        {
+            foreach (var tank in Tank.All)
+            {
+                if (!tank.MirrorActive || tank.IsDead) continue;
+                Vector3 center = tank.transform.position;
+                foreach (var p in active)
+                {
+                    if (p.dead || p.owner == tank) continue;
+                    Vector3 off = Prims.Flat(p.pos - center);
+                    if (off.sqrMagnitude > MirrorRadius * MirrorRadius) continue;
+                    Vector3 outward = off.sqrMagnitude > 0.0001f ? off.normalized : -p.dir;
+                    var shooter = p.owner;
+                    Vector3 back = shooter != null && !shooter.IsDead && shooter != tank
+                        ? Prims.Flat(shooter.transform.position - center).normalized
+                        : Prims.Flat(Vector3.Reflect(p.dir, outward)).normalized;
+                    p.dir = back;
+                    p.pos = new Vector3(center.x, Ricochet.ShotHeight, center.z) + back * (MirrorRadius + 0.1f);
+                    p.prevPos = p.pos;
+                    p.owner = tank;
+                    p.team = tank.Team;
+                    p.bouncesDone = Mathf.Max(1, p.bouncesDone);
+                    p.bouncesLeft = Mathf.Max(1, p.bouncesLeft);
+                    p.distanceLeft = Mathf.Max(p.distanceLeft, 20f);
+                    p.visual.Move(p.pos, ColorOf(p));
+                    p.visual.ResetTrail();
+                    Sfx.I.Play(SfxId.Mirror, p.pos, 0.7f, 1.4f);
+                    Fx.I.Sparks(p.pos, back, cfg.bulletPlayer, 12, 5f);
+                    EchoSystem.I.Emit(p.pos, 3f, cfg.echoColor, 0.7f);
+                    tank.Visual.Flash();
+                    if (tank.Team == Team.Player) GameManager.I.UI.Floating(p.pos + Vector3.up, "ОТРАЖЕНО", UiKit.Accent, 28);
+                }
+            }
+        }
+
+        /// <summary>Рывок сбивает чужие пули на пути.</summary>
+        void CutByDash()
+        {
+            foreach (var tank in Tank.All)
+            {
+                if (!tank.Dashing || tank.IsDead) continue;
+                Vector3 center = tank.transform.position;
+                foreach (var p in active)
+                {
+                    if (p.dead || p.team == tank.Team) continue;
+                    if (Prims.Flat(p.pos - center).sqrMagnitude > 1.3f * 1.3f) continue;
+                    Fx.I.Sparks(p.pos, Vector3.up, ColorOf(p), 10, 4f);
+                    Sfx.I.Play(SfxId.Clang, p.pos, 0.6f, 1.5f);
+                    Die(p, true);
+                }
+            }
         }
 
         void Die(Projectile p, bool fizzle)

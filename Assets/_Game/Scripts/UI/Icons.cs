@@ -9,6 +9,7 @@ namespace PulyaDura
         Tank, Armor, Dash, Mirror, Wall, Cannon, Plasma, Shotgun, Rail,
         Sound, Quiet, Clock, Target, Ricochet, Chevron,
         Plus, Bolt, Eye, Trophy,
+        Logo, Play, Restart, Loop, Home, Pause, Infinity, Mouse,
     }
 
     /// <summary>
@@ -19,7 +20,7 @@ namespace PulyaDura
     {
         const int Size = 96;
         static readonly Dictionary<IconId, Sprite> icons = new();
-        static Sprite panel, frame;
+        static Sprite panel, frame, glow;
 
         // ---------- Панели со срезанными углами (9-slice) ----------
 
@@ -28,6 +29,37 @@ namespace PulyaDura
 
         /// <summary>Рамка той же формы.</summary>
         public static Sprite Frame => frame != null ? frame : frame = Chamfer(true);
+
+        /// <summary>
+        /// Мягкое свечение вокруг рамки панели (9-slice). Картинка шире панели на GlowMargin с каждой стороны:
+        /// снаружи свечение плавно гаснет, внутри — узкая полоска у края.
+        /// </summary>
+        public static Sprite Glow => glow != null ? glow : glow = MakeGlow();
+        public const float GlowMargin = 18f;
+
+        static Sprite MakeGlow()
+        {
+            const int s = 80, m = 18, cut = 12, border = 34;
+            var tex = new Texture2D(s, s, TextureFormat.RGBA32, false) { wrapMode = TextureWrapMode.Clamp, filterMode = FilterMode.Bilinear };
+            var px = new Color32[s * s];
+            float lo = m, hi = s - m;
+            for (int y = 0; y < s; y++)
+            for (int x = 0; x < s; x++)
+            {
+                float fx = x + 0.5f, fy = y + 0.5f;
+                // Расстояние до восьмиугольника со срезанными углами (больше нуля — снаружи)
+                float dx = Mathf.Max(lo - fx, fx - hi), dy = Mathf.Max(lo - fy, fy - hi);
+                float box = Mathf.Max(dx, dy);
+                float cx = Mathf.Min(fx - lo, hi - fx), cy = Mathf.Min(fy - lo, hi - fy);
+                float chamfer = (cut - (cx + cy)) * 0.7071f;
+                float d = Mathf.Max(box, chamfer);
+                float a = d > 0f ? Mathf.Exp(-d / 6f) * 0.85f : Mathf.Exp(d / 2.2f) * 0.6f;
+                px[y * s + x] = new Color32(255, 255, 255, (byte)(Mathf.Clamp01(a) * 255));
+            }
+            tex.SetPixels32(px);
+            tex.Apply();
+            return Sprite.Create(tex, new UnityEngine.Rect(0, 0, s, s), new Vector2(0.5f, 0.5f), 100f, 0, SpriteMeshType.FullRect, new Vector4(border, border, border, border));
+        }
 
         static Sprite Chamfer(bool outline)
         {
@@ -127,8 +159,31 @@ namespace PulyaDura
             IconId.Trophy => p => Poly(p, new(-0.6f, 0.8f), new(0.6f, 0.8f), new(0.35f, 0.05f), new(-0.35f, 0.05f))
                                   || Box(p, new(0f, -0.25f), new(0.09f, 0.3f)) || Box(p, new(0f, -0.65f), new(0.45f, 0.12f))
                                   || Ring(p, new(-0.62f, 0.5f), 0.22f, 0.08f) || Ring(p, new(0.62f, 0.5f), 0.22f, 0.08f),
+            IconId.Logo => p => (Poly(p, new(0f, 0.95f), new(0.8f, 0.66f), new(0.7f, -0.2f), new(0f, -0.95f), new(-0.7f, -0.2f), new(-0.8f, 0.66f))
+                                 && !Poly(p, new(0f, 0.78f), new(0.64f, 0.54f), new(0.56f, -0.14f), new(0f, -0.76f), new(-0.56f, -0.14f), new(-0.64f, 0.54f)))
+                                 || Poly(p, new(-0.36f, 0.12f), new(0.36f, 0.12f), new(0.26f, -0.42f), new(-0.26f, -0.42f))
+                                 || Circle(p, new(0f, 0.1f), 0.17f) || Seg(p, new(0f, 0.1f), new(0f, 0.6f), 0.07f),
+            IconId.Play => p => Poly(p, new(-0.5f, 0.75f), new(0.8f, 0f), new(-0.5f, -0.75f)) && !Poly(p, new(-0.34f, 0.46f), new(0.46f, 0f), new(-0.34f, -0.46f)),
+            IconId.Pause => p => Box(p, new(-0.3f, 0f), new(0.16f, 0.7f)) || Box(p, new(0.3f, 0f), new(0.16f, 0.7f)),
+            IconId.Restart => p => (Ring(p, Vector2.zero, 0.62f, 0.15f) && !InAngle(p, 40f, 100f))
+                                   || Poly(p, new(-0.05f, 0.98f), new(-0.05f, 0.26f), new(-0.5f, 0.62f)),
+            IconId.Loop => p => (Ring(p, Vector2.zero, 0.62f, 0.15f) && !InAngle(p, 60f, 110f) && !InAngle(p, 240f, 290f))
+                                || Poly(p, new(0.1f, 0.98f), new(0.1f, 0.26f), new(-0.35f, 0.62f))
+                                || Poly(p, new(-0.1f, -0.98f), new(-0.1f, -0.26f), new(0.35f, -0.62f)),
+            IconId.Home => p => (Poly(p, new(0f, 0.85f), new(0.85f, 0.05f), new(-0.85f, 0.05f)) && !Poly(p, new(0f, 0.6f), new(0.55f, 0.08f), new(-0.55f, 0.08f)))
+                                || (Box(p, new(0f, -0.4f), new(0.55f, 0.42f)) && !Box(p, new(0f, -0.52f), new(0.16f, 0.3f))),
+            IconId.Infinity => p => Ring(p, new(-0.4f, 0f), 0.32f, 0.14f) || Ring(p, new(0.4f, 0f), 0.32f, 0.14f),
+            IconId.Mouse => p => (Box(p, new(0f, 0f), new(0.45f, 0.75f)) && !Box(p, new(0f, 0f), new(0.32f, 0.62f))) || Seg(p, new(0f, 0.62f), new(0f, 0.2f), 0.06f),
             _ => p => false,
         };
+
+        /// <summary>Угол точки (0° — вправо, против часовой) внутри диапазона [from, to].</summary>
+        static bool InAngle(Vector2 p, float from, float to)
+        {
+            float a = Mathf.Atan2(p.y, p.x) * Mathf.Rad2Deg;
+            if (a < 0f) a += 360f;
+            return a >= from && a <= to;
+        }
 
         // ---------- Примитивы ----------
 

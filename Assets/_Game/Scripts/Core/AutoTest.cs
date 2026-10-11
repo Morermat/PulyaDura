@@ -316,6 +316,7 @@ namespace PulyaDura
             // 11д. Объекты на карте и бонусы
             yield return WorldObjectTests();
             yield return WeaponTests();
+            yield return AbilityTests();
 
             // 11г. Враг стреляет за кадром — у края экрана стрелка в его сторону
             gm.DebugLoadRoom(6);
@@ -651,6 +652,55 @@ namespace PulyaDura
         }
 
         /// <summary>Рельса и ящики, очередь плазмы, бонус тратится только при попадании, решётка, скругления.</summary>
+        /// <summary>Зеркало возвращает пули и не пропускает урон; рывок таранит; пули игрока не краснеют.</summary>
+        IEnumerator AbilityTests()
+        {
+            var gm = GameManager.I;
+            var cfg = GameManager.Cfg;
+            Vector3 up = Vector3.up * Ricochet.ShotHeight;
+
+            var c = ProjectileSystem.I.PlayerBulletColor(3);
+            Check("Пуля игрока после отскоков остаётся синей", c.b > c.r * 1.2f && c.b >= c.g, $"цвет {c}");
+
+            // Зеркало (Барсук): пуля врага разворачивается обратно в стрелка, урона нет
+            gm.SelectHull(cfg.hulls.FindIndex(h => h.ability == AbilityType.Mirror));
+            gm.DebugLoadRoom(0);
+            yield return Wait(0.6f);
+            var p = gm.Player;
+            p.GetComponent<PlayerController>().enabled = false;
+            var dCfg = cfg.Enemy('t');
+            var shooter = Tank.Spawn(Team.Enemy, cfg.Hull(dCfg.hullId), cfg.Turret(dCfg.turretId), dCfg, CellToWorld(8, 9, 21, 13), Quaternion.identity, gm.LevelRoot);
+            KillEnemiesExcept(shooter);
+            yield return Wait(0.3f);
+            shooter.Brain.enabled = false;
+            int playerHp = p.Hp, shooterHp = shooter.Hp;
+            p.Ability.TryActivate(Vector3.zero, Vector3.forward);
+            Vector3 toPlayer = Prims.Flat(p.transform.position - shooter.transform.position).normalized;
+            ProjectileSystem.I.Spawn(shooter, cfg.Turret("cannon"), shooter.transform.position + toPlayer * 1.3f + up, toPlayer, 0f);
+            yield return Wait(1.4f);
+            p.TakeDamage(new DamageInfo { amount = 2, source = shooter, point = p.transform.position, direction = Vector3.forward });
+            Check("Зеркало: урона нет, пока оно горит", p.Hp == playerHp, $"броня {playerHp} → {p.Hp}");
+            Check("Зеркало: пуля возвращается в стрелка", shooter == null || shooter.IsDead || shooter.Hp < shooterHp, shooter != null ? $"стрелок {shooterHp} → {shooter.Hp}" : "стрелок уничтожен");
+            Shot("30_mirror");
+            yield return Wait(0.1f);
+
+            // Рывок (Стриж): таран наносит урон
+            gm.SelectHull(cfg.hulls.FindIndex(h => h.ability == AbilityType.Dash));
+            gm.DebugLoadRoom(0);
+            yield return Wait(0.6f);
+            p = gm.Player;
+            var target = Tank.Spawn(Team.Enemy, cfg.Hull(dCfg.hullId), cfg.Turret(dCfg.turretId), dCfg, p.transform.position + Vector3.right * 3.2f, Quaternion.identity, gm.LevelRoot);
+            KillEnemiesExcept(target);
+            yield return Wait(0.3f);
+            target.Brain.enabled = false;
+            int targetHp = target.Hp;
+            p.Ability.TryActivate(Vector3.right, Vector3.right);
+            yield return Wait(0.6f);
+            Check("Рывок: таран наносит урон", target.IsDead || target.Hp < targetHp, $"цель {targetHp} → {target.Hp}");
+            Check("Рывок: после рывка неуязвимость снята", !p.Invulnerable && !p.Dashing);
+            gm.SelectHull(1);
+        }
+
         IEnumerator WeaponTests()
         {
             var gm = GameManager.I;

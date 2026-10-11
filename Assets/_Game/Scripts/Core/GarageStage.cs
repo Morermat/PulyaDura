@@ -24,6 +24,8 @@ namespace PulyaDura
             ring.shadowCastingMode = ShadowCastingMode.Off;
             Prims.Part("Floor", PrimitiveType.Cube, transform, new Vector3(0f, -0.6f, 0f), new Vector3(40f, 1f, 40f), Mats.Floor);
 
+            BuildDecor();
+
             var key = new GameObject("KeyLight").AddComponent<Light>();
             key.transform.SetParent(transform, false);
             key.transform.localPosition = new Vector3(1.5f, 6f, -2f);
@@ -42,6 +44,46 @@ namespace PulyaDura
             rim.range = 7f;
             rim.intensity = 4f;
             rim.color = EchoSystem.Ldr(cfg.echoColor);
+        }
+
+        /// <summary>
+        /// Декорации подиума — кусочек игровой комнаты: ряд светящихся стеновых блоков, две круглые колонны
+        /// и большое кольцо эха на полу. Сразу видно, как выглядит мир игры.
+        /// </summary>
+        void BuildDecor()
+        {
+            var glow = new MaterialPropertyBlock();
+            glow.SetColor(Mats.EmissionColor, cfg.echoColor * 0.6f);
+            for (int i = 0; i < 6; i++)
+            {
+                var r = Prims.Part("DecorWall", PrimitiveType.Cube, transform, new Vector3(-2.1f, 0.35f, 2.2f + i * 0.72f), Vector3.one * 0.7f, Mats.Wall);
+                r.SetPropertyBlock(glow);
+            }
+            var pillarMesh = WallShapes.Get(new[] { 0.5f, 0.5f, 0.5f, 0.5f }, 0.8f, 0.8f);
+            foreach (var pos in new[] { new Vector3(1.5f, 0f, 3.4f), new Vector3(2.4f, 0f, 2.1f) })
+            {
+                var go = new GameObject("DecorPillar");
+                go.transform.SetParent(transform, false);
+                go.transform.localPosition = pos;
+                go.AddComponent<MeshFilter>().sharedMesh = pillarMesh;
+                var mr = go.AddComponent<MeshRenderer>();
+                mr.sharedMaterial = Mats.Wall;
+                mr.SetPropertyBlock(glow);
+            }
+            var circle = new GameObject("EchoCircle").AddComponent<LineRenderer>();
+            circle.transform.SetParent(transform, false);
+            circle.useWorldSpace = false;
+            circle.loop = true;
+            circle.sharedMaterial = cfg.fxMaterial;
+            circle.widthMultiplier = 0.07f;
+            circle.positionCount = 96;
+            for (int i = 0; i < 96; i++)
+            {
+                float a = i * Mathf.PI * 2f / 96f;
+                circle.SetPosition(i, new Vector3(Mathf.Cos(a) * 3.1f, 0.02f, Mathf.Sin(a) * 3.1f));
+            }
+            circle.startColor = circle.endColor = (Color)EchoSystem.Ldr(cfg.echoColor) * 0.45f;
+            circle.shadowCastingMode = ShadowCastingMode.Off;
         }
 
         public void Show(HullConfig hull, TurretConfig turret)

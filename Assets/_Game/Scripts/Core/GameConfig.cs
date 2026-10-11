@@ -183,16 +183,16 @@ namespace PulyaDura
                 id = "strizh", title = "Стриж", style = HullStyle.Light, description = "Быстрый, 3 брони",
                 maxHp = 4, speed = 6.6f, size = new Vector2(0.95f, 1.15f), height = 0.26f,
                 ability = AbilityType.Dash, abilityTitle = "Рывок",
-                abilityDescription = "рывок сквозь пули",
-                abilityCooldown = 2.5f, abilityDuration = 0.25f
+                abilityDescription = "таран, сбивает пули, эхо",
+                abilityCooldown = 3f, abilityDuration = 0.35f
             },
             new HullConfig
             {
                 id = "barsuk", title = "Барсук", style = HullStyle.Medium, description = "Средний, 5 брони",
                 maxHp = 5, speed = 5f, size = new Vector2(1.1f, 1.3f), height = 0.32f,
                 ability = AbilityType.Mirror, abilityTitle = "Зеркало",
-                abilityDescription = "отражает пули 2,5 с",
-                abilityCooldown = 7f, abilityDuration = 2.5f
+                abilityDescription = "3 с без урона, пули летят назад",
+                abilityCooldown = 6f, abilityDuration = 3f
             },
             new HullConfig
             {
