@@ -15,7 +15,7 @@ namespace PulyaDura
     public class RunStats
     {
         public float time;
-        public int kills, ricochetKills, shots, deaths, bestStreak, rooms;
+        public int kills, ricochetKills, shots, deaths, bestStreak, rooms, score, pickups;
     }
 
     /// <summary>
@@ -120,6 +120,12 @@ namespace PulyaDura
             data.renderPostProcessing = true;
             data.antialiasing = AntialiasingMode.SubpixelMorphologicalAntiAliasing;
             if (cam.GetComponent<CameraRig>() == null) cam.gameObject.AddComponent<CameraRig>();
+
+            // Уши — над танком игрока, а не в камере: так работает объёмный звук
+            if (cam.TryGetComponent<AudioListener>(out var camListener)) camListener.enabled = false;
+            var ears = new GameObject("Listener");
+            ears.AddComponent<AudioListener>();
+            ears.AddComponent<AudioListenerRig>();
 
             if (FindAnyObjectByType<EventSystem>() == null)
             {
@@ -279,6 +285,7 @@ namespace PulyaDura
 
             Stats.kills++;
             bool byPlayer = d.source != null && d.source.Team == Team.Player;
+            bool betrayal = d.source != null && d.source.Team == Team.Enemy && d.source != t;
             KillKind kind = d.source == t ? KillKind.Self
                 : !byPlayer ? KillKind.Betrayal
                 : d.bounces >= 2 ? KillKind.DoubleRicochet
@@ -292,6 +299,8 @@ namespace PulyaDura
                 if (d.bounces > 0) Stats.ricochetKills++;
             }
             feedback.OnKill(t, kind, byPlayer ? streak : 0);
+            if (byPlayer) AddScore(100 + 50 * d.bounces + 50 * (streak - 1), t.transform.position);
+            else if (betrayal) AddScore(75, t.transform.position);
 
             if (EnemiesAlive() == 0 && State == GameState.Playing) RoomCleared();
         }
@@ -313,7 +322,8 @@ namespace PulyaDura
             bool self = d.source != null && d.source == Player;
             ui.Banner(self ? "ПУЛЯ — ДУРА" : "ПОДБИТ", Lives > 0 ? $"Осталось жизней: {Lives}" : "Жизни кончились", UiKit.Danger);
             // Убил сам себя — голос медленно и с издёвкой произносит название игры
-            if (self) Announcer.I.Chant(2, slam: false, pitch: 0.85f);
+            if (self) Announcer.I.Chant(2, slam: false, pitch: 0.85f, variant: 0);
+            AddScore(-150, null);
             Sfx.I.Play(SfxId.Death);
             TimeController.I.SlowMo(0.25f, 0.8f);
             flow = StartCoroutine(After(1.7f, () =>
@@ -326,7 +336,8 @@ namespace PulyaDura
         void RoomCleared()
         {
             State = GameState.RoomClear;
-            Stats.rooms++;
+            Stats.rooms = Mathf.Min(Stats.rooms + 1, RoomCount);
+            AddScore(250, null);
             if (Player != null) Player.Invulnerable = true;
             TimeController.I.SlowMo(0.3f, 0.9f);
             Sfx.I.Play(SfxId.RoomClear);
@@ -362,7 +373,26 @@ namespace PulyaDura
                 record |= !win;
             }
             PlayerPrefs.Save();
-            ui.ShowResult(win, Stats, record, bestTime, bestRooms);
+            if (win) AddScore(Mathf.Max(0, Mathf.RoundToInt((300f - Stats.time) * 10f)), null);
+            int place = Leaderboard.Add(new RunRecord
+            {
+                score = Stats.score, time = Stats.time, rooms = Stats.rooms, win = win, kills = Stats.kills,
+                hull = config.hulls[HullIndex].title, turret = config.turrets[TurretIndex].title, ticks = DateTime.Now.Ticks,
+            });
+            ui.ShowResult(win, Stats, record, bestTime, bestRooms, place);
+        }
+
+        /// <summary>Очки (см. Leaderboard). Если задана точка — над ней всплывает «+N».</summary>
+        public void AddScore(int points, Vector3? at)
+        {
+            Stats.score = Mathf.Max(0, Stats.score + points);
+            if (at.HasValue && points > 0) ui.Floating(at.Value + Vector3.up * 0.6f, "+" + points, UiKit.TextColor, 26);
+        }
+
+        public void OnPickup(Pickup pickup)
+        {
+            Stats.pickups++;
+            AddScore(25, null);
         }
 
         IEnumerator After(float seconds, Action action)

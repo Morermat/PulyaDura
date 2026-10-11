@@ -75,6 +75,13 @@ namespace PulyaDura
             GameEvents.TankDamaged -= OnDamaged;
         }
 
+        /// <summary>Мгновенный перенос (телепорт): агент переставляется на навмеше.</summary>
+        public void Warp(Vector3 pos)
+        {
+            if (agent != null && agent.isOnNavMesh) agent.Warp(pos);
+            else transform.position = pos;
+        }
+
         // ---------- Восприятие ----------
 
         void OnNoise(Vector3 pos, float radius, Team team)

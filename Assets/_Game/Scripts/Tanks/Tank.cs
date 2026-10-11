@@ -24,6 +24,37 @@ namespace PulyaDura
         public TankWeapon Weapon { get; private set; }
         public TankAbility Ability { get; private set; }
         public PlayerController Controller { get; private set; }
+        /// <summary>Бонус «Щит»: сколько попаданий будет погашено полностью.</summary>
+        public int ShieldCharges
+        {
+            get => shieldCharges;
+            set { shieldCharges = Mathf.Max(0, value); Visual.SetShieldBubble(shieldCharges > 0); }
+        }
+        int shieldCharges;
+        public float LastTeleport { get; private set; } = -10f;
+        public bool HasFrontShield => Enemy != null && Enemy.frontShield;
+
+        /// <summary>Попадает ли снаряд, летящий в направлении dir, в щит на башне (спереди ±60°).</summary>
+        public bool ShieldFacing(Vector3 dir) =>
+            HasFrontShield && Vector3.Dot(Prims.Flat(dir).normalized, Prims.Flat(Visual.TurretPivot.forward).normalized) < -0.5f;
+
+        public void Heal(int amount)
+        {
+            Hp = Mathf.Min(MaxHp, Hp + amount);
+            Visual.SetHealth((float)Hp / MaxHp);
+        }
+
+        public void TeleportTo(Vector3 pos)
+        {
+            LastTeleport = Time.time;
+            pos.y = transform.position.y;
+            if (Brain != null) Brain.Warp(pos);
+            else
+            {
+                Body.position = pos;
+                transform.position = pos;
+            }
+        }
         public EnemyBrain Brain { get; private set; }
         public Rigidbody Body { get; private set; }
         public BoxCollider Collider { get; private set; }
@@ -100,6 +131,14 @@ namespace PulyaDura
         public void TakeDamage(DamageInfo info)
         {
             if (IsDead || Invulnerable) return;
+            if (ShieldCharges > 0)
+            {
+                ShieldCharges--;
+                Visual.Flash();
+                Sfx.I.Play(SfxId.Clang, transform.position, 1f, 1.3f);
+                Fx.I.Sparks(transform.position + Vector3.up * 0.5f, -info.direction, new Color(0.4f, 1.6f, 3f), 20, 6f);
+                return;
+            }
             Hp = Mathf.Max(0, Hp - info.amount);
             Visual.Flash();
             if (Visual.Hidden) EchoGhosts.I.Snapshot(this, Color.white, 1f);

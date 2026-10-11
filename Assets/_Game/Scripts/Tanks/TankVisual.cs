@@ -26,15 +26,42 @@ namespace PulyaDura
             set
             {
                 hidden = value;
-                foreach (var r in litParts) r.enabled = !value;
-                foreach (var r in glowParts) r.enabled = !value;
-                trackL.enabled = trackR.enabled = !value;
-                sensor.enabled = !value;
+                ApplyVisibility(!value);
             }
+        }
+
+        /// <summary>Враг помечен пулей-меткой: виден целиком, пока не истечёт время.</summary>
+        public bool Marked => Time.time < markUntil;
+
+        /// <summary>Танк сейчас нарисован (скрытый враг виден только под меткой).</summary>
+        public bool Shown => shownNow;
+
+        void ApplyVisibility(bool visible)
+        {
+            shownNow = visible;
+            foreach (var r in litParts) r.enabled = visible;
+            foreach (var r in glowParts) r.enabled = visible;
+            trackL.enabled = trackR.enabled = visible;
+            sensor.enabled = visible;
+        }
+
+        public void Mark(float seconds)
+        {
+            markUntil = Time.time + seconds;
+            reveal = 1f;
+        }
+
+        /// <summary>Пузырь бонуса «Щит» у игрока.</summary>
+        public void SetShieldBubble(bool on)
+        {
+            if (shieldBubble != null) shieldBubble.gameObject.SetActive(on);
         }
 
         readonly List<MeshRenderer> litParts = new();
         readonly List<MeshRenderer> glowParts = new();
+        float markUntil;
+        bool shownNow = true;
+        Transform shieldBubble;
         bool hidden;
         MeshRenderer trackL, trackR;
         MeshRenderer sensor;
@@ -83,6 +110,7 @@ namespace PulyaDura
             TurretPivot.SetParent(HullRoot, false);
             TurretPivot.localPosition = new Vector3(0f, HullTop(hull), hull.style == HullStyle.Heavy ? 0.12f : -0.02f); // у тяжёлого башня впереди моторного отсека
             BuildTurret(turret, body);
+            if (enemy != null && enemy.frontShield) BuildFrontShield(hull);
 
             BuildHelpers(hull, withLight);
             // Тени от фонаря игрока рендерят каждую деталь 6 раз: мелочь тени не отбрасывает
@@ -189,6 +217,19 @@ namespace PulyaDura
 
         // ---------- Башня и пушка ----------
 
+        /// <summary>Изогнутый щит перед башней из трёх пластин; светится цветом типа врага.</summary>
+        void BuildFrontShield(HullConfig hull)
+        {
+            float r = Mathf.Max(hull.size.x, hull.size.y) * 0.62f;
+            for (int i = -1; i <= 1; i++)
+            {
+                var rot = Quaternion.Euler(0f, i * 32f, 0f);
+                Vector3 pos = rot * new Vector3(0f, 0.12f, r);
+                Lit("Shield", PrimitiveType.Cube, TurretPivot, pos, new Vector3(0.5f, 0.42f, 0.06f), new Color(0.2f, 0.25f, 0.32f), rot);
+                Glow("ShieldEdge", PrimitiveType.Cube, TurretPivot, pos + rot * new Vector3(0f, 0.22f, 0.01f), new Vector3(0.5f, 0.03f, 0.07f), accent, rot);
+            }
+        }
+
         void BuildTurret(TurretConfig t, Color body)
         {
             float ts = t.turretSize;
@@ -265,6 +306,10 @@ namespace PulyaDura
         {
             float w = hull.size.x, l = hull.size.y;
             bubbleSize = Mathf.Max(w, l) + 0.6f;
+            var shield = Prims.Part("ShieldBubble", PrimitiveType.Sphere, transform, new Vector3(0f, 0.45f, 0f), Vector3.one * (bubbleSize + 0.25f), Mats.Fx(new Color(0.3f, 0.9f, 2f) * 0.18f));
+            shield.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            shieldBubble = shield.transform;
+            shieldBubble.gameObject.SetActive(false);
             var bubble = Prims.Part("Mirror", PrimitiveType.Sphere, transform, new Vector3(0f, 0.45f, 0f), Vector3.one * bubbleSize, Mats.Fx(new Color(0.4f, 1.2f, 2f) * 0.35f));
             bubble.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             mirrorBubble = bubble.transform;
@@ -419,7 +464,12 @@ namespace PulyaDura
             }
 
             // Скрытый враг выдаёт себя только сенсором за миг до выстрела
-            if (hidden) sensor.enabled = tell > 0.05f;
+            if (hidden)
+            {
+                bool marked = Marked;
+                if (marked != shownNow) ApplyVisibility(marked);
+                if (!marked) sensor.enabled = tell > 0.05f;
+            }
             if (tell != lastTell)
             {
                 lastTell = tell;

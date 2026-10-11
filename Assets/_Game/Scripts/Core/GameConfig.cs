@@ -79,6 +79,7 @@ namespace PulyaDura
         [Tooltip("Стреляет на звук, даже не видя игрока (подавляющий огонь)")] public bool blindFire = true;
         [Tooltip("Охотник держит эту дистанцию и стрейфит")] public float preferRange = 6f;
         [Tooltip("Упреждение по движущейся цели: 0 — нет, 1 — полное")] public float lead = 0.8f;
+        [Tooltip("Щит на башне отражает пули, летящие спереди: бить надо сбоку, через отскок")] public bool frontShield;
     }
 
     /// <summary>
@@ -98,6 +99,20 @@ namespace PulyaDura
         public Material litMaterial;
         public Material unlitMaterial;
         public Material fxMaterial;
+
+        [Header("Объекты на карте")]
+        [Tooltip("Шрапнель красной бочки: разлетается кольцом и тоже отскакивает")]
+        public TurretConfig shrapnel = new()
+        {
+            id = "shrapnel", title = "Шрапнель", damage = 1, projectileSpeed = 13f, projectileRadius = 0.08f,
+            bounces = 1, range = 9f, echoRadius = 2.5f, noiseRadius = 10f,
+        };
+        public int shrapnelCount = 10;
+        public float barrelRadius = 2.4f;
+        public int barrelDamage = 3;
+        [Tooltip("Радиус, на который ловушка «зовёт» врагов")] public float trapNoiseRadius = 26f;
+        [Tooltip("Сколько секунд лежит выпавший бонус")] public float pickupLifetime = 18f;
+        [Tooltip("Сколько секунд виден враг, помеченный пулей-меткой")] public float markDuration = 2f;
 
         [Header("Камера")]
         [Tooltip("1 — вся комната в кадре, меньше — ближе к танку")] public float cameraZoom = 0.68f;
@@ -226,6 +241,7 @@ namespace PulyaDura
             new EnemyConfig { symbol = "h", title = "Охотник", accent = new Color(3f, 0.35f, 0.25f), hullId = "strizh", turretId = "plasma", behaviour = EnemyBehaviour.Hunter, fireInterval = 0.9f, aimError = 7f, turretTurnSpeed = 200f, speedMultiplier = 0.7f, preferRange = 6f },
             new EnemyConfig { symbol = "g", title = "Громила", accent = new Color(1.8f, 0.4f, 3f), hullId = "barsuk", turretId = "shotgun", behaviour = EnemyBehaviour.Hunter, fireInterval = 1.6f, aimError = 4f, turretTurnSpeed = 160f, speedMultiplier = 0.8f, preferRange = 3.5f, sight = 6f },
             new EnemyConfig { symbol = "s", title = "Снайпер", accent = new Color(0.5f, 3f, 0.6f), hullId = "barsuk", turretId = "cannon", behaviour = EnemyBehaviour.Static, bankShots = true, fireInterval = 2.4f, aimError = 1.5f, turretTurnSpeed = 110f, hearing = 1.7f, sight = 12f, blindFire = false, lead = 1f },
+            new EnemyConfig { symbol = "q", title = "Щитоносец", accent = new Color(1.4f, 1.9f, 3f), hullId = "barsuk", turretId = "cannon", behaviour = EnemyBehaviour.Hunter, hpOverride = 5, frontShield = true, fireInterval = 1.9f, aimError = 4f, turretTurnSpeed = 130f, speedMultiplier = 0.7f, preferRange = 5f, sight = 8f },
             new EnemyConfig { symbol = "B", title = "Бегемот", accent = new Color(3f, 0.3f, 1.6f), hullId = "begemot", turretId = "rail", behaviour = EnemyBehaviour.Hunter, hpOverride = 14, bankShots = true, fireInterval = 2.6f, aimError = 2f, turretTurnSpeed = 90f, speedMultiplier = 0.85f, memory = 6f, preferRange = 7f, sight = 9f },
         };
     }

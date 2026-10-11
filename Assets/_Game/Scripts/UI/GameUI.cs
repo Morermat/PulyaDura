@@ -47,6 +47,8 @@ namespace PulyaDura
         Image bannerLineL, bannerLineR;
         float bannerTime, bannerLife;
         Text resultTitle, resultTime, resultKills, resultRicochets, resultExtra, resultRecord;
+        Text scoreText, garageBoard, resultBoard;
+        readonly List<(Image icon, Text count)> buffSlots = new();
 
         // слово во весь экран (распев «ПУЛЯ. ДУРА.»)
         RectTransform slamRoot;
@@ -143,6 +145,10 @@ namespace PulyaDura
             }
 
             recordText = UiKit.Text("Record", garageRoot, BL, BL, new Vector2(100f, 128f), new Vector2(700f, 36f), "", 24, UiKit.Muted, TextAnchor.LowerLeft, Weight.Mono);
+            var board = UiKit.Panel("Board", garageRoot, TL, TL, new Vector2(96f, -520f), new Vector2(640f, 196f));
+            UiKit.Icon("Trophy", board.transform, TL, TL, new Vector2(24f, -18f), 26f, IconId.Trophy, UiKit.Accent);
+            UiKit.Text("Head", board.transform, TL, TL, new Vector2(60f, -20f), new Vector2(560f, 26f), "ЛУЧШИЕ ЗАБЕГИ", 18, UiKit.Muted, TextAnchor.UpperLeft, Weight.Mono);
+            garageBoard = UiKit.Text("Rows", board.transform, TL, TL, new Vector2(24f, -56f), new Vector2(600f, 130f), "", 19, UiKit.TextColor, TextAnchor.UpperLeft, Weight.Mono);
 
             // Карточка выбора справа
             var card = UiKit.Panel("Card", garageRoot, TR, TR, new Vector2(-96f, -80f), new Vector2(600f, 780f));
@@ -212,6 +218,7 @@ namespace PulyaDura
 
             float bestTime = PlayerPrefs.GetFloat("best_time", 0f);
             int bestRooms = PlayerPrefs.GetInt("best_rooms", 0);
+            garageBoard.text = BoardText(5, -1);
             recordText.text = bestTime > 0f ? $"РЕКОРД  {FormatTime(bestTime)}"
                 : bestRooms > 0 ? $"РЕКОРД  {bestRooms}/{gm.RoomCount} КОМНАТ" : "";
         }
@@ -255,6 +262,19 @@ namespace PulyaDura
 
             UiKit.Icon("Clock", hudRoot, TR, TR, new Vector2(-218f, -36f), 30f, IconId.Clock, UiKit.Muted);
             timer = UiKit.Text("Timer", hudRoot, TR, TR, new Vector2(-48f, -30f), new Vector2(170f, 44f), "", 34, UiKit.TextColor, TextAnchor.UpperRight, Weight.Mono);
+            UiKit.Icon("Trophy", hudRoot, TR, TR, new Vector2(-218f, -86f), 28f, IconId.Trophy, UiKit.Muted);
+            scoreText = UiKit.Text("Score", hudRoot, TR, TR, new Vector2(-48f, -80f), new Vector2(170f, 40f), "0", 30, UiKit.Accent, TextAnchor.UpperRight, Weight.Mono);
+
+            // Активные бонусы: щит, ваншот, метка — иконка и число
+            (IconId icon, Color color)[] buffs = { (IconId.Armor, new Color(0.4f, 0.8f, 1f)), (IconId.Bolt, UiKit.Danger), (IconId.Eye, new Color(1f, 0.85f, 0.2f)) };
+            for (int i = 0; i < buffs.Length; i++)
+            {
+                var slot = UiKit.Panel("Buff", hudRoot, BL, BL, new Vector2(40f + i * 92f, 192f), new Vector2(84f, 46f));
+                var icon = UiKit.Icon("Icon", slot.transform, ML, ML, new Vector2(10f, 0f), 30f, buffs[i].icon, buffs[i].color);
+                var count = UiKit.Text("Count", slot.transform, ML, ML, new Vector2(46f, 0f), new Vector2(40f, 30f), "", 22, UiKit.TextColor, TextAnchor.MiddleLeft, Weight.Mono);
+                buffSlots.Add((icon, count));
+                slot.gameObject.SetActive(false);
+            }
 
             // Приборная панель слева внизу
             var dash = UiKit.Panel("Dashboard", hudRoot, BL, BL, new Vector2(40f, 40f), new Vector2(430f, 140f)).transform;
@@ -316,6 +336,15 @@ namespace PulyaDura
         void UpdateHud()
         {
             timer.text = FormatTime(gm.Stats.time);
+            scoreText.text = gm.Stats.score.ToString();
+            var pl = gm.Player;
+            int[] buffValues = pl != null && !pl.IsDead ? new[] { pl.ShieldCharges, pl.Weapon.PowerShots, pl.Weapon.MarkShots } : new[] { 0, 0, 0 };
+            for (int i = 0; i < buffSlots.Count; i++)
+            {
+                var slotGo = buffSlots[i].icon.transform.parent.gameObject;
+                if (slotGo.activeSelf != buffValues[i] > 0) slotGo.SetActive(buffValues[i] > 0);
+                buffSlots[i].count.text = "×" + buffValues[i];
+            }
             for (int i = 0; i < lifeIcons.Count; i++)
                 lifeIcons[i].color = i < gm.Lives ? UiKit.Danger : UiKit.Faint;
 
@@ -582,9 +611,13 @@ namespace PulyaDura
             resultTitle = UiKit.Text("Title", resultRoot, C, C, new Vector2(0f, 290f), new Vector2(1400f, 140f), "", 120, UiKit.Accent, TextAnchor.MiddleCenter, Weight.Black);
             UiKit.Shadow(resultTitle, 5f, 0.6f);
 
-            resultTime = Tile("ВРЕМЯ", IconId.Clock, -300f);
-            resultKills = Tile("ПОДБИТО", IconId.Target, 0f);
+            resultKills = Tile("ОЧКИ", IconId.Trophy, -300f);
+            resultTime = Tile("ВРЕМЯ", IconId.Clock, 0f);
             resultRicochets = Tile("РИКОШЕТОМ", IconId.Ricochet, 300f);
+            // У правого края: на 4:3 не наезжает на плитки
+            var board = UiKit.Panel("Board", resultRoot, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-40f, 40f), new Vector2(360f, 330f));
+            UiKit.Text("Head", board.transform, TL, TL, new Vector2(22f, -20f), new Vector2(320f, 26f), "ТАБЛИЦА ЗАБЕГОВ", 18, UiKit.Muted, TextAnchor.UpperLeft, Weight.Mono);
+            resultBoard = UiKit.Text("Rows", board.transform, TL, TL, new Vector2(22f, -56f), new Vector2(330f, 270f), "", 18, UiKit.TextColor, TextAnchor.UpperLeft, Weight.Mono);
             resultExtra = UiKit.Text("Extra", resultRoot, C, C, new Vector2(0f, -40f), new Vector2(1000f, 40f), "", 22, UiKit.Muted, TextAnchor.MiddleCenter, Weight.Mono);
             resultRecord = UiKit.Text("Record", resultRoot, C, C, new Vector2(0f, -100f), new Vector2(1000f, 50f), "", 30, UiKit.Danger, TextAnchor.MiddleCenter, Weight.Bold);
 
@@ -603,7 +636,7 @@ namespace PulyaDura
             return value;
         }
 
-        public void ShowResult(bool win, RunStats s, bool record, float bestTime, int bestRooms)
+        public void ShowResult(bool win, RunStats s, bool record, float bestTime, int bestRooms, int place = 0)
         {
             EndSlam();
             hudRoot.gameObject.SetActive(false);
@@ -613,13 +646,34 @@ namespace PulyaDura
             resultTitle.text = win ? "ПОБЕДА" : "ПРОВАЛ";
             resultTitle.color = win ? UiKit.Accent : UiKit.Danger;
             resultTime.text = FormatTime(s.time);
-            resultKills.text = s.kills.ToString();
+            resultKills.text = s.score.ToString();
             resultRicochets.text = s.ricochetKills.ToString();
-            resultExtra.text = $"КОМНАТ {s.rooms}/{gm.RoomCount}   ·   СЕРИЯ {s.bestStreak}   ·   СМЕРТЕЙ {s.deaths}";
+            resultExtra.text = $"КОМНАТ {s.rooms}/{gm.RoomCount}   ·   ПОДБИТО {s.kills}   ·   СЕРИЯ {s.bestStreak}   ·   СМЕРТЕЙ {s.deaths}";
+            resultBoard.text = BoardText(10, place);
             // Лучшее достижение: время полного прохождения важнее числа комнат
             resultRecord.text = record ? "НОВЫЙ РЕКОРД!"
                 : bestTime > 0f ? $"Рекорд: {FormatTime(bestTime)}" : $"Рекорд: {bestRooms} из {gm.RoomCount} комнат";
             resultRecord.color = record ? UiKit.Danger : UiKit.Muted;
+            if (place > 0)
+            {
+                resultRecord.text = place == 1 ? "ЛУЧШИЙ ЗАБЕГ В ТАБЛИЦЕ!" : $"МЕСТО #{place} В ТАБЛИЦЕ";
+                resultRecord.color = place <= 3 ? UiKit.Danger : UiKit.TextColor;
+            }
+        }
+
+        /// <summary>Строки таблицы забегов. Текущий забег (place) подсвечен.</summary>
+        static string BoardText(int rows, int place)
+        {
+            var top = Leaderboard.Top;
+            if (top.Count == 0) return "<color=#8A96A6>Пока пусто. Сыграй первый забег!</color>";
+            var sb = new System.Text.StringBuilder();
+            for (int i = 0; i < Mathf.Min(rows, top.Count); i++)
+            {
+                var r = top[i];
+                string line = $"{i + 1,2}  {r.score,6}  {FormatTime(r.time)}  {(r.win ? "ПОБЕДА" : r.rooms + "/8")}";
+                sb.AppendLine(i + 1 == place ? $"<color=#FF8F38>{line}  ◄</color>" : line);
+            }
+            return sb.ToString();
         }
 
         // ---------- Общее ----------

@@ -60,6 +60,7 @@ namespace PulyaDura
             src.loop = true;
             src.playOnAwake = false;
             src.spatialBlend = 0f;
+            src.reverbZoneMix = 0f; // музыка «сухая», реверберация комнаты на неё не действует
             return src;
         }
 

@@ -7,7 +7,8 @@ namespace PulyaDura
     public enum SfxId
     {
         Shot, Plasma, Shotgun, RailCharge, RailFire, Tink, Hit, Explode, Dash, Mirror, WallUp,
-        Click, Select, RoomClear, Death, CrateBreak, Empty, Hurt
+        Click, Select, RoomClear, Death, CrateBreak, Empty, Hurt,
+        Pickup, Teleport, Alarm, Clang
     }
 
     /// <summary>
@@ -42,11 +43,17 @@ namespace PulyaDura
             I = this;
             Generate();
             foreach (var o in overrides) if (o.clip != null) clips[o.id] = o.clip;
-            for (int i = 0; i < 20; i++)
+            for (int i = 0; i < 28; i++)
             {
-                var src = gameObject.AddComponent<AudioSource>();
+                var go = new GameObject("Voice" + i);
+                go.transform.SetParent(transform, false);
+                var src = go.AddComponent<AudioSource>();
                 src.playOnAwake = false;
-                src.spatialBlend = 0f;
+                src.dopplerLevel = 0f;
+                src.rolloffMode = AudioRolloffMode.Logarithmic;
+                src.minDistance = 4f;
+                src.maxDistance = 45f;
+                src.spread = 40f;
                 voices.Add(src);
             }
             if (ambienceVolume > 0f)
@@ -59,24 +66,26 @@ namespace PulyaDura
             }
         }
 
+        /// <summary>
+        /// Звук в точке мира — объёмный: слышно, слева/справа и насколько далеко (слушатель стоит в танке игрока,
+        /// см. AudioListenerRig), плюс реверберация комнаты. Без точки — плоский звук интерфейса.
+        /// </summary>
         public void Play(SfxId id, Vector3? at = null, float vol = 1f, float pitch = 1f)
         {
             if (!clips.TryGetValue(id, out var clip)) return;
             var src = voices[next];
             next = (next + 1) % voices.Count;
-            float pan = 0f;
-            var cam = CameraRig.I;
-            if (at.HasValue && cam != null)
+            if (at.HasValue)
             {
-                pan = Mathf.Clamp((at.Value.x - cam.transform.position.x) / 14f, -0.85f, 0.85f);
-                var player = GameManager.I != null ? GameManager.I.Player : null;
-                if (player != null)
-                {
-                    float d = Vector3.Distance(player.transform.position, at.Value);
-                    vol *= Mathf.Lerp(1f, 0.35f, d / 25f);
-                }
+                src.transform.position = at.Value + Vector3.up * 0.5f;
+                src.spatialBlend = 0.85f; // немного «в центре», чтобы далёкие звуки не пропадали совсем
+                src.reverbZoneMix = 1f;
             }
-            src.panStereo = pan;
+            else
+            {
+                src.spatialBlend = 0f;
+                src.reverbZoneMix = 0f;
+            }
             src.pitch = pitch;
             src.PlayOneShot(clip, vol * volume);
         }
@@ -116,6 +125,8 @@ namespace PulyaDura
             return Mathf.Abs(k) < 1e-4f ? f0 * t : f0 * (Mathf.Exp(k * t) - 1f) / k;
         }
 
+        static readonly float[] PickupNotes = { 587.33f, 698.46f, 880f, 1174.66f };
+
         void Generate()
         {
             float lp = 0f, lp2 = 0f, brown = 0f;
@@ -147,13 +158,16 @@ namespace PulyaDura
                 lp += (Noise() - lp) * 0.5f;
                 return lp * Mathf.Exp(-t * 7f) * 0.7f + Sin(Sweep(t, 2600f, 180f, 0.7f)) * Mathf.Exp(-t * 5f) * 0.5f;
             });
-            clips[SfxId.Tink] = Make("tink", 0.35f, (t, i) =>
+            // Маримба на «ре» (587 Гц): основной тон + деревянный 4-й обертон, который гаснет быстрее.
+            // Высоту каждого отскока задаёт ProjectileSystem.BouncePitch — получается гамма.
+            clips[SfxId.Tink] = Make("marimba", 0.9f, (t, i) =>
             {
-                float env = Mathf.Exp(-t * 18f);
-                // три копии с задержкой — короткое «эхо»
-                float a = Sin(1500f * t) + Sin(2380f * t) * 0.35f;
-                float b = t > 0.09f ? (Sin(1500f * (t - 0.09f)) * 0.35f) * Mathf.Exp(-(t - 0.09f) * 14f) : 0f;
-                return a * env * 0.45f + b;
+                const float f = 587.33f;
+                float body = Sin(f * t) * Mathf.Exp(-t * 6f);
+                float wood = Sin(f * 3.93f * t) * Mathf.Exp(-t * 22f) * 0.45f;
+                float strike = Sin(f * 9.2f * t) * Mathf.Exp(-t * 70f) * 0.25f;
+                float attack = Mathf.Clamp01(t / 0.002f);
+                return (body + wood + strike) * attack * 0.5f;
             });
             clips[SfxId.Hit] = Make("hit", 0.3f, (t, i) =>
             {
@@ -203,6 +217,30 @@ namespace PulyaDura
                 float lt = t - k * 0.11f;
                 float tone = Sin(notes[k] * t) * 0.6f + Sin(notes[k] * 2f * t) * 0.15f;
                 return tone * Mathf.Exp(-lt * (k == 3 ? 3f : 10f)) * 0.4f;
+            });
+            clips[SfxId.Pickup] = Make("pickup", 0.45f, (t, i) =>
+            {
+                // быстрое восходящее арпеджио ре-фа-ля-ре
+                int k = Mathf.Min(3, (int)(t / 0.07f));
+                float lt = t - k * 0.07f;
+                return (Sin(PickupNotes[k] * t) + 0.3f * Sin(PickupNotes[k] * 2f * t)) * Mathf.Exp(-lt * 12f) * 0.35f;
+            });
+            clips[SfxId.Teleport] = Make("teleport", 0.5f, (t, i) =>
+            {
+                float sweep = Sweep(t, 300f, 1800f, 0.5f);
+                return (Sin(sweep) * 0.3f + Sin(sweep * 1.5f) * 0.15f) * Mathf.Sin(Mathf.PI * t / 0.5f) * (0.6f + 0.4f * Mathf.Sin(t * 90f));
+            });
+            clips[SfxId.Alarm] = Make("alarm", 1.4f, (t, i) =>
+            {
+                // сирена: два тона чередуются, как у тревоги
+                float f = (int)(t / 0.18f) % 2 == 0 ? 880f : 660f;
+                float sq = Mathf.Sign(Sin(f * t)) * 0.18f + Sin(f * t) * 0.2f;
+                return sq * Mathf.Clamp01((1.4f - t) / 0.3f);
+            });
+            clips[SfxId.Clang] = Make("clang", 0.5f, (t, i) =>
+            {
+                float env = Mathf.Exp(-t * 9f);
+                return (Sin(523f * t) + Sin(1371f * t) * 0.6f + Sin(2213f * t) * 0.35f) * env * 0.35f + Noise() * Mathf.Exp(-t * 80f) * 0.4f;
             });
             clips[SfxId.Death] = Make("death", 1.1f, (t, i) =>
             {

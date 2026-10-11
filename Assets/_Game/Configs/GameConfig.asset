@@ -161,6 +161,7 @@ MonoBehaviour:
     blindFire: 1
     preferRange: 6
     lead: 0.8
+    frontShield: 0
   - symbol: r
     title: "\u041D\u043E\u0432\u0438\u0447\u043E\u043A"
     hullId: strizh
@@ -180,6 +181,7 @@ MonoBehaviour:
     blindFire: 1
     preferRange: 6
     lead: 0
+    frontShield: 0
   - symbol: t
     title: "\u0422\u0443\u0440\u0435\u043B\u044C"
     hullId: begemot
@@ -199,6 +201,7 @@ MonoBehaviour:
     blindFire: 1
     preferRange: 6
     lead: 0.5
+    frontShield: 0
   - symbol: h
     title: "\u041E\u0445\u043E\u0442\u043D\u0438\u043A"
     hullId: strizh
@@ -218,6 +221,7 @@ MonoBehaviour:
     blindFire: 1
     preferRange: 6
     lead: 0.8
+    frontShield: 0
   - symbol: g
     title: "\u0413\u0440\u043E\u043C\u0438\u043B\u0430"
     hullId: barsuk
@@ -237,6 +241,7 @@ MonoBehaviour:
     blindFire: 1
     preferRange: 3.5
     lead: 0.8
+    frontShield: 0
   - symbol: s
     title: "\u0421\u043D\u0430\u0439\u043F\u0435\u0440"
     hullId: barsuk
@@ -256,6 +261,27 @@ MonoBehaviour:
     blindFire: 0
     preferRange: 6
     lead: 1
+    frontShield: 0
+  - symbol: q
+    title: "\u0429\u0438\u0442\u043E\u043D\u043E\u0441\u0435\u0446"
+    hullId: barsuk
+    turretId: cannon
+    behaviour: 2
+    accent: {r: 1.4, g: 1.9, b: 3, a: 1}
+    hpOverride: 5
+    fireInterval: 1.9
+    aimError: 4
+    turretTurnSpeed: 130
+    bankShots: 0
+    senseRadius: 3.2
+    hearing: 1
+    memory: 4
+    speedMultiplier: 0.7
+    sight: 8
+    blindFire: 1
+    preferRange: 5
+    lead: 0.8
+    frontShield: 1
   - symbol: B
     title: "\u0411\u0435\u0433\u0435\u043C\u043E\u0442"
     hullId: begemot
@@ -275,9 +301,38 @@ MonoBehaviour:
     blindFire: 1
     preferRange: 7
     lead: 0.8
+    frontShield: 0
   litMaterial: {fileID: 2100000, guid: b95d2222124da65488df0e5b277adffc, type: 2}
   unlitMaterial: {fileID: 2100000, guid: 04987d0fd0a5f4246929139b4eabf816, type: 2}
   fxMaterial: {fileID: 2100000, guid: 5821342150805974f8a666776bab9f89, type: 2}
+  shrapnel:
+    id: shrapnel
+    title: "\u0428\u0440\u0430\u043F\u043D\u0435\u043B\u044C"
+    description: 
+    style: 0
+    mode: 0
+    damage: 1
+    reload: 0.5
+    pellets: 1
+    spread: 0
+    projectileSpeed: 13
+    projectileRadius: 0.08
+    bounces: 1
+    range: 9
+    chargeTime: 0
+    echoRadius: 2.5
+    noiseRadius: 10
+    barrels: 1
+    barrelLength: 0.8
+    barrelWidth: 0.14
+    barrelSpacing: 0.16
+    turretSize: 0.62
+  shrapnelCount: 10
+  barrelRadius: 2.4
+  barrelDamage: 3
+  trapNoiseRadius: 26
+  pickupLifetime: 18
+  markDuration: 2
   cameraZoom: 0.68
   cameraLean: 1.5
   lives: 3

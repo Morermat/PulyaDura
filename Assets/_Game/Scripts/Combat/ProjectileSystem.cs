@@ -15,7 +15,17 @@ namespace PulyaDura
         public int bouncesLeft;
         public int bouncesDone;
         public bool dead;
+        public bool power;          // ваншот: урон 99
+        public bool mark;           // метка: попадание делает врага видимым
+        public float portalCooldown;
         public ProjectileVisual visual;
+    }
+
+    /// <summary>Модификаторы выстрела от бонусов.</summary>
+    public struct ShotMods
+    {
+        public bool power;
+        public bool mark;
     }
 
     /// <summary>
@@ -47,12 +57,34 @@ namespace PulyaDura
             active.Clear();
         }
 
-        public void Spawn(Tank owner, TurretConfig turret, Vector3 origin, Vector3 dir, float advance)
+        /// <summary>Звукоряд отскоков: минорная пентатоника в тональности музыки (ре). Каждый отскок — нота выше.</summary>
+        static readonly int[] BounceScale = { 0, 3, 5, 7, 10, 12, 15, 17, 19 };
+
+        public static float BouncePitch(int bounce, Team team)
+        {
+            int semis = BounceScale[Mathf.Clamp(bounce, 0, BounceScale.Length - 1)];
+            return Mathf.Pow(2f, semis / 12f) * (team == Team.Player ? 1f : 0.5f); // враги — октавой ниже
+        }
+
+        /// <summary>Кольцо шрапнели (красная бочка). Владелец — тот, кто подорвал: ему и засчитываются убийства.</summary>
+        public void SpawnShrapnel(Tank source, Vector3 center, TurretConfig shrapnel, int count)
+        {
+            float offset = Random.value * 360f;
+            for (int i = 0; i < count; i++)
+            {
+                Vector3 dir = Quaternion.Euler(0f, offset + i * 360f / count, 0f) * Vector3.forward;
+                Spawn(source, shrapnel, center, dir, 0.3f, default, source != null ? source.Team : Team.Enemy);
+            }
+        }
+
+        public void Spawn(Tank owner, TurretConfig turret, Vector3 origin, Vector3 dir, float advance, ShotMods mods = default, Team? team = null)
         {
             var p = new Projectile
             {
                 owner = owner,
-                team = owner.Team,
+                team = team ?? (owner != null ? owner.Team : Team.Enemy),
+                power = mods.power,
+                mark = mods.mark,
                 cfg = turret,
                 pos = origin,
                 prevPos = origin,
@@ -63,7 +95,7 @@ namespace PulyaDura
             p.visual = pool.Count > 0 ? pool.Pop() : CreateVisual();
             bool withLight = lights < 14;
             if (withLight) lights++;
-            p.visual.Show(p.pos, turret.projectileRadius, ColorOf(p), withLight);
+            p.visual.Show(p.pos, turret.projectileRadius * (p.power ? 1.7f : 1f), ColorOf(p), withLight);
             Step(p, advance);
             if (p.dead) { Release(p); return; }
             p.prevPos = p.pos;
@@ -75,6 +107,8 @@ namespace PulyaDura
         /// <summary>Каждый отскок делает пулю ярче: видно, что она «заряжена» и опасна.</summary>
         Color ColorOf(Projectile p)
         {
+            if (p.power) return new Color(3.5f, 0.5f, 0.3f) * (1f + cfg.glowGrowthPerBounce * p.bouncesDone);
+            if (p.mark) return new Color(2.8f, 2.4f, 0.3f) * (1f + cfg.glowGrowthPerBounce * p.bouncesDone);
             Color c = p.team == Team.Enemy ? cfg.bulletEnemy : p.bouncesDone > 0 ? cfg.bulletDanger : cfg.bulletPlayer;
             return c * (1f + cfg.glowGrowthPerBounce * p.bouncesDone);
         }
@@ -84,10 +118,15 @@ namespace PulyaDura
         void Update()
         {
             float dt = Time.deltaTime;
-            foreach (var p in active)
+            // По индексу: пуля может породить новые (бочка → шрапнель) прямо во время шага
+            int count = active.Count;
+            for (int i = 0; i < count; i++)
             {
+                var p = active[i];
                 p.prevPos = p.pos;
                 Step(p, p.cfg.projectileSpeed * dt);
+                p.portalCooldown -= dt;
+                if (!p.dead) TryTeleport(p);
             }
             CancelCollidingShells();
             for (int i = active.Count - 1; i >= 0; i--)
@@ -137,6 +176,24 @@ namespace PulyaDura
             }
         }
 
+        /// <summary>Пуля, пролетевшая через центр портала, выходит из парного портала с тем же направлением.</summary>
+        void TryTeleport(Projectile p)
+        {
+            if (p.portalCooldown > 0f) return;
+            foreach (var t in Teleporter.All)
+            {
+                if (t.Partner == null) continue;
+                if (Ricochet.DistanceToSegment(t.transform.position, p.prevPos, p.pos, out _) > Teleporter.Radius * 0.8f) continue;
+                Vector3 exit = t.Partner.transform.position + p.dir * (Teleporter.Radius + 0.15f);
+                p.pos = p.prevPos = new Vector3(exit.x, Ricochet.ShotHeight, exit.z);
+                p.portalCooldown = 0.35f;
+                p.visual.Move(p.pos, ColorOf(p));
+                p.visual.ResetTrail();
+                t.Flash(0.6f);
+                return;
+            }
+        }
+
         void Step(Projectile p, float dist)
         {
             int guard = 0;
@@ -157,7 +214,7 @@ namespace PulyaDura
                 if (normal.sqrMagnitude < 0.01f) normal = -p.dir;
 
                 if (hit.collider.TryGetComponent<Tank>(out var tank)) HitTank(p, tank, normal);
-                else if (hit.collider.TryGetComponent<Crate>(out var crate)) HitCrate(p, crate);
+                else if (hit.collider.TryGetComponent<IDamageable>(out var breakable)) HitBreakable(p, breakable);
                 else HitWall(p, normal);
             }
         }
@@ -199,15 +256,29 @@ namespace PulyaDura
                 EchoSystem.I.Emit(p.pos, EchoRadius(p), cfg.echoColor);
                 return;
             }
-            tank.TakeDamage(new DamageInfo { amount = p.cfg.damage, source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone });
+            if (tank.ShieldFacing(p.dir))
+            {
+                // Щит на башне: пуля отлетает как от стены и теперь опасна и для стрелка
+                p.dir = Prims.Flat(Vector3.Reflect(p.dir, tank.Visual.TurretPivot.forward)).normalized;
+                p.pos += p.dir * 0.1f;
+                p.bouncesDone++;
+                Sfx.I.Play(SfxId.Clang, p.pos, 0.9f, Random.Range(0.95f, 1.05f));
+                Fx.I.Sparks(p.pos, -p.dir, Color.white * 2f, 14, 6f);
+                EchoSystem.I.Emit(p.pos, EchoRadius(p), cfg.echoColor, 0.8f);
+                GameManager.I.UI.Floating(p.pos + Vector3.up, "ЩИТ", UiKit.TextColor, 26);
+                return;
+            }
+            tank.TakeDamage(new DamageInfo { amount = p.power ? 99 : p.cfg.damage, source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone });
+            if (p.mark && !tank.IsDead) tank.Visual.Mark(cfg.markDuration);
             EchoSystem.I.Emit(p.pos, EchoRadius(p) * 0.6f, EchoColor(p), 0.8f);
             Fx.I.Sparks(p.pos, -p.dir, ColorOf(p), 14 + 8 * p.bouncesDone, 6f);
             Die(p, false);
         }
 
-        void HitCrate(Projectile p, Crate crate)
+        /// <summary>Ящик, жёлтый ящик или бочка: всё, что ломается, но не танк.</summary>
+        void HitBreakable(Projectile p, IDamageable target)
         {
-            crate.TakeDamage(new DamageInfo { amount = p.cfg.damage, source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone });
+            target.TakeDamage(new DamageInfo { amount = p.cfg.damage, source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone });
             EchoSystem.I.Emit(p.pos, EchoRadius(p) * 0.6f, EchoColor(p), 0.7f);
             Die(p, false);
         }
@@ -220,7 +291,7 @@ namespace PulyaDura
             GameEvents.RaiseNoise(p.pos, p.cfg.noiseRadius * 0.6f, p.team);
             if (p.bouncesLeft <= 0)
             {
-                Sfx.I.Play(SfxId.Tink, p.pos, 0.5f, 0.7f);
+                Sfx.I.Play(SfxId.Tink, p.pos, 0.45f, BouncePitch(p.bouncesDone + 1, p.team) * 0.5f);
                 Die(p, true);
                 return;
             }
@@ -229,7 +300,7 @@ namespace PulyaDura
             p.dir = Prims.Flat(Vector3.Reflect(p.dir, normal)).normalized;
             p.pos += normal * 0.02f;
             p.visual.SetRadius(p.cfg.projectileRadius * (1f + 0.2f * p.bouncesDone));
-            Sfx.I.Play(SfxId.Tink, p.pos, 0.7f, 1f + p.bouncesDone * 0.12f);
+            Sfx.I.Play(SfxId.Tink, p.pos, 0.75f, BouncePitch(p.bouncesDone, p.team));
         }
 
         /// <summary>Сколько снарядов сейчас в полёте (для QA).</summary>
@@ -267,7 +338,7 @@ namespace PulyaDura
         }
 
         /// <summary>Рельса: мгновенный луч по той же траектории, что у пуль. Пробивает танки.</summary>
-        public void FireRail(Tank owner, TurretConfig turret, Vector3 origin, Vector3 dir)
+        public void FireRail(Tank owner, TurretConfig turret, Vector3 origin, Vector3 dir, ShotMods mods = default)
         {
             Ricochet.TracePath(origin, dir, turret.range, turret.bounces, turret.projectileRadius, Layers.WallMask, railPath);
             railHit.Clear();
@@ -285,7 +356,14 @@ namespace PulyaDura
                     if (!hits[k].collider.TryGetComponent<Tank>(out var t) || t.IsDead || t.Invulnerable) continue;
                     if (t == owner && s == 0) continue;
                     if (!railHit.Add(t)) continue;
-                    t.TakeDamage(new DamageInfo { amount = turret.damage, source = owner, point = t.transform.position, direction = d / len, bounces = s });
+                    if (t.ShieldFacing(d / len))
+                    {
+                        Sfx.I.Play(SfxId.Clang, t.transform.position, 1f, 0.8f);
+                        Fx.I.Sparks(t.transform.position + Vector3.up * 0.5f, -d / len, Color.white * 2f, 18, 7f);
+                        continue;
+                    }
+                    t.TakeDamage(new DamageInfo { amount = mods.power ? 99 : turret.damage, source = owner, point = t.transform.position, direction = d / len, bounces = s });
+                    if (mods.mark && !t.IsDead) t.Visual.Mark(cfg.markDuration);
                     Fx.I.Sparks(t.transform.position + Vector3.up * 0.5f, -d / len, cfg.bulletDanger, 18, 7f);
                 }
                 if (s + 1 < railPath.Count)

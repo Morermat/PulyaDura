@@ -12,6 +12,8 @@ namespace PulyaDura
         public string[] rows;
         public int width;
         public int height;
+        /// <summary>Акустика комнаты: пресет реверберации из третьего поля заголовка (Room, Cave, Hallway…).</summary>
+        public AudioReverbPreset reverb = AudioReverbPreset.Room;
     }
 
     /// <summary>
@@ -52,6 +54,8 @@ namespace PulyaDura
                         title = parts[0].Trim(),
                         hint = parts.Length > 1 ? parts[1].Trim() : ""
                     };
+                    if (parts.Length > 2 && System.Enum.TryParse(parts[2].Trim(), true, out AudioReverbPreset preset))
+                        current.reverb = preset;
                 }
                 else if (line.Length > 0 && current != null)
                 {
@@ -99,6 +103,10 @@ namespace PulyaDura
             Mats.Floor.SetTextureScale(Mats.BaseMap, new Vector2(w, h));
 
             var crates = new List<Vector3>();
+            var supplies = new List<Vector3>();
+            var barrels = new List<Vector3>();
+            var traps = new List<Vector3>();
+            var portals = new Dictionary<char, List<Vector3>>();
             for (int y = 0; y < h; y++)
             {
                 string row = room.rows[y];
@@ -110,6 +118,13 @@ namespace PulyaDura
                     {
                         case '#': CreateWall(pos); break;
                         case 'c': crates.Add(pos); break;
+                        case 'y': supplies.Add(pos); break;
+                        case 'x': barrels.Add(pos); break;
+                        case 'n': traps.Add(pos); break;
+                        case >= '1' and <= '4':
+                            if (!portals.TryGetValue(ch, out var list)) portals[ch] = list = new List<Vector3>();
+                            list.Add(pos);
+                            break;
                         case 'P': PlayerSpawn = pos; break;
                         case '.': case ' ': break;
                         default:
@@ -130,7 +145,28 @@ namespace PulyaDura
             surface.layerMask = (1 << 0) | Layers.WallMask;
             surface.BuildNavMesh();
 
-            foreach (var p in crates) CreateCrate(p);
+            foreach (var p in crates) CreateCrate(p, Mats.Crate, false);
+            foreach (var p in supplies) CreateCrate(p, SupplyMaterial, true);
+            foreach (var p in barrels) CreateBarrel(p);
+            foreach (var p in traps) NoiseTrap.Create(p, root.transform);
+            foreach (var (key, points) in portals)
+            {
+                if (points.Count != 2)
+                {
+                    Debug.LogWarning($"[Комната «{room.title}»] телепорт '{key}' должен встречаться ровно 2 раза, а не {points.Count}");
+                    continue;
+                }
+                var a = Teleporter.Create(points[0], key - '1', root.transform);
+                var b = Teleporter.Create(points[1], key - '1', root.transform);
+                a.Partner = b;
+                b.Partner = a;
+            }
+
+            // Акустика: зона реверберации на всю комнату
+            var reverb = root.AddComponent<AudioReverbZone>();
+            reverb.reverbPreset = room.reverb;
+            reverb.minDistance = Mathf.Max(w, h) * c * 0.6f;
+            reverb.maxDistance = reverb.minDistance + 8f;
             Physics.SyncTransforms();
         }
 
@@ -143,18 +179,61 @@ namespace PulyaDura
             r.gameObject.AddComponent<WallBlock>();
         }
 
-        void CreateCrate(Vector3 pos)
+        static Material supplyMaterial;
+        static Material SupplyMaterial
         {
-            float s = cfg.cellSize * 0.78f;
-            var r = Prims.Part("Crate", PrimitiveType.Cube, root.transform, pos + Vector3.up * 0.45f, new Vector3(s, 0.9f, s), Mats.Crate,
+            get
+            {
+                if (supplyMaterial != null) return supplyMaterial;
+                supplyMaterial = new Material(Mats.Crate) { name = "Supply" };
+                supplyMaterial.SetColor(Mats.BaseColor, new Color(0.45f, 0.36f, 0.05f));
+                return supplyMaterial;
+            }
+        }
+
+        void CreateCrate(Vector3 pos, Material mat, bool supply)
+        {
+            float s = cfg.cellSize * (supply ? 0.6f : 0.78f);
+            var r = Prims.Part(supply ? "Supply" : "Crate", PrimitiveType.Cube, root.transform, pos + Vector3.up * (supply ? 0.35f : 0.45f), new Vector3(s, supply ? 0.7f : 0.9f, s), mat,
                 Quaternion.Euler(0f, Random.Range(-12f, 12f), 0f));
             r.gameObject.layer = Layers.Wall;
             r.gameObject.AddComponent<BoxCollider>();
-            r.gameObject.AddComponent<WallBlock>();
-            r.gameObject.AddComponent<Crate>();
+            var wall = r.gameObject.AddComponent<WallBlock>();
+            if (supply)
+            {
+                // Жёлтый ящик чуть светится в темноте: его можно найти без эха
+                wall.baseColor = new Color(2.4f, 1.9f, 0.3f);
+                wall.baseGlow = 0.22f;
+                r.gameObject.AddComponent<SupplyBox>();
+            }
+            else r.gameObject.AddComponent<Crate>();
             var obstacle = r.gameObject.AddComponent<NavMeshObstacle>();
             obstacle.shape = NavMeshObstacleShape.Box;
             obstacle.size = Vector3.one;
+            obstacle.carving = true;
+        }
+
+        /// <summary>Красная бочка: тёмная, с тлеющими красными обручами — видна вблизи и в эхе.</summary>
+        void CreateBarrel(Vector3 pos)
+        {
+            var r = Prims.Part("Barrel", PrimitiveType.Cylinder, root.transform, pos + Vector3.up * 0.48f, new Vector3(0.75f, 0.48f, 0.75f), Mats.Lit(new Color(0.35f, 0.05f, 0.04f), 0.5f));
+            r.gameObject.layer = Layers.Wall;
+            var col = r.gameObject.AddComponent<CapsuleCollider>();
+            col.radius = 0.5f;
+            col.height = 2f;
+            var wall = r.gameObject.AddComponent<WallBlock>();
+            wall.baseColor = new Color(2.6f, 0.3f, 0.15f);
+            wall.baseGlow = 0.12f;
+            r.gameObject.AddComponent<Barrel>();
+            for (int i = -1; i <= 1; i += 2)
+            {
+                var hoop = Prims.Part("Hoop", PrimitiveType.Cylinder, r.transform, new Vector3(0f, i * 0.5f, 0f), new Vector3(1.04f, 0.04f, 1.04f), Mats.Unlit(new Color(2.4f, 0.25f, 0.1f)));
+                hoop.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            }
+            var obstacle = r.gameObject.AddComponent<NavMeshObstacle>();
+            obstacle.shape = NavMeshObstacleShape.Capsule;
+            obstacle.radius = 0.5f;
+            obstacle.height = 2f;
             obstacle.carving = true;
         }
     }

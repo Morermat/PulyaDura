@@ -308,6 +308,9 @@ namespace PulyaDura
                 $"было {flying}, осталось {ProjectileSystem.I.CountAlive()}");
             p.Invulnerable = false;
 
+            // 11д. Объекты на карте и бонусы
+            yield return WorldObjectTests();
+
             // 11г. Враг стреляет за кадром — у края экрана стрелка в его сторону
             gm.DebugLoadRoom(6);
             yield return Wait(0.6f);
@@ -352,6 +355,11 @@ namespace PulyaDura
                     Check($"Комната {before + 1} → {before + 2}", gm.RoomIndex == before + 1 && gm.State == GameState.Playing, $"room={gm.RoomIndex} state={gm.State}");
             }
             Check("После 8-й комнаты экран победы", gm.State == GameState.Result, $"state={gm.State}");
+            var board = Leaderboard.Top;
+            Check("Забег попал в таблицу, очки > 0", gm.Stats.score > 0 && board.Count > 0 && (board.Exists(r => r.score == gm.Stats.score) || board.Count == 10),
+                $"очки {gm.Stats.score}, записей {board.Count}");
+            Shot("24_result_board");
+            yield return Wait(0.1f);
             Shot("08_victory");
             yield return Wait(0.5f);
             yield return Tap(Key.R);
@@ -547,6 +555,183 @@ namespace PulyaDura
             ui.SetActive(true);
             GameManager.I.EnterGarage();
             yield return Wait(0.5f);
+        }
+
+        IEnumerator WorldObjectTests()
+        {
+            var gm = GameManager.I;
+            var cannon = GameManager.Cfg.Turret("cannon");
+            Vector3 up = Vector3.up * Ricochet.ShotHeight;
+
+            // Звук: одни уши — над игроком; гамма отскоков растёт
+            gm.DebugLoadRoom(0);
+            yield return Wait(0.5f);
+            var p = gm.Player;
+            int listeners = 0;
+            AudioListener ears = null;
+            foreach (var l in FindObjectsByType<AudioListener>(FindObjectsSortMode.None))
+                if (l.isActiveAndEnabled) { listeners++; ears = l; }
+            float earsOff = ears != null ? Prims.Flat(ears.transform.position - p.transform.position).magnitude : 99f;
+            Check("Объёмный звук: один слушатель, он над игроком", listeners == 1 && earsOff < 0.5f, $"слушателей {listeners}, смещение {earsOff:F2}");
+            Check("Отскоки звучат по гамме вверх", ProjectileSystem.BouncePitch(1, Team.Player) < ProjectileSystem.BouncePitch(2, Team.Player)
+                && ProjectileSystem.BouncePitch(2, Team.Player) < ProjectileSystem.BouncePitch(4, Team.Player)
+                && ProjectileSystem.BouncePitch(1, Team.Enemy) < ProjectileSystem.BouncePitch(1, Team.Player));
+            int clips = 0;
+            foreach (var v in Announcer.I.variants) if (v.first != null && v.second != null) clips++;
+            Check("Голос: 3+ варианта распева со звуком", Announcer.I.VariantCount >= 3 && clips == Announcer.I.VariantCount, $"вариантов {Announcer.I.VariantCount}, с клипами {clips}");
+
+            // Ваншот: мишень (2 брони) падает с одного выстрела, за убийство дают очки
+            p.GetComponent<PlayerController>().enabled = false;
+            p.Invulnerable = true;
+            Tank target = null, rookie = null;
+            foreach (var t in Tank.All)
+            {
+                if (t.Team != Team.Enemy) continue;
+                if (t.Enemy.behaviour == EnemyBehaviour.Dummy) target = t; else rookie = t;
+            }
+            rookie.Brain.enabled = false;
+            int score0 = gm.Stats.score;
+            ProjectileSystem.I.Spawn(p, cannon, target.transform.position + Vector3.left * 2f + up, Vector3.right, 0f, new ShotMods { power = true });
+            yield return Wait(0.6f);
+            Check("Бонус «Ваншот»: враг погибает с одного попадания", target.IsDead, $"броня {target.Hp}/{target.MaxHp}");
+            Check("Очки за убийство", gm.Stats.score > score0, $"{score0} → {gm.Stats.score}");
+
+            // Метка: попавший враг подсвечен. Цель — турель (4 брони), чтобы пережила попадание
+            var tCfg = GameManager.Cfg.Enemy('t');
+            var marked = Tank.Spawn(Team.Enemy, GameManager.Cfg.Hull(tCfg.hullId), GameManager.Cfg.Turret(tCfg.turretId), tCfg,
+                CellToWorld(6, 10, 21, 13), Quaternion.identity, gm.LevelRoot);
+            yield return Wait(0.2f);
+            marked.Brain.enabled = false;
+            ProjectileSystem.I.Spawn(p, cannon, marked.transform.position + Vector3.left * 2f + up, Vector3.right, 0f, new ShotMods { mark = true });
+            yield return Wait(0.4f);
+            Check("Бонус «Метка»: враг виден после попадания", !marked.IsDead && marked.Visual.Marked && marked.Visual.Shown, $"marked={marked.Visual.Marked} shown={marked.Visual.Shown} hp={marked.Hp}");
+            Shot("18_marked_enemy");
+            yield return Wait(0.1f);
+
+            // Аптечка и щит
+            p.Invulnerable = false;
+            p.TakeDamage(new DamageInfo { amount = 2, source = rookie, point = p.transform.position, direction = Vector3.forward });
+            int hpHurt = p.Hp;
+            Pickup.Spawn(PickupType.Heal, p.transform.position + Vector3.right * 0.3f, gm.LevelRoot);
+            yield return Wait(0.3f);
+            Check("Аптечка подбирается наездом и лечит", p.Hp > hpHurt && Pickup.All.Count == 0, $"{hpHurt} → {p.Hp}, на полу {Pickup.All.Count}");
+            Pickup.Spawn(PickupType.Shield, p.transform.position, gm.LevelRoot);
+            yield return Wait(0.3f);
+            int hpShield = p.Hp;
+            bool hadShield = p.ShieldCharges > 0;
+            p.TakeDamage(new DamageInfo { amount = 1, source = rookie, point = p.transform.position, direction = Vector3.forward });
+            Check("Щит гасит одно попадание", hadShield && p.Hp == hpShield && p.ShieldCharges == 0, $"щит={hadShield}, броня {hpShield} → {p.Hp}");
+            p.Invulnerable = true;
+
+            // Жёлтый ящик в комнате 2 роняет бонус
+            gm.DebugLoadRoom(1);
+            yield return Wait(0.5f);
+            var box = FindAnyObjectByType<SupplyBox>();
+            bool hasBox = box != null;
+            for (int i = 0; i < 4 && box != null; i++)
+                box.TakeDamage(new DamageInfo { amount = 1, source = gm.Player, point = box.transform.position, direction = Vector3.up });
+            yield return Wait(0.3f);
+            Check("Жёлтый ящик роняет бонус", hasBox && Pickup.All.Count == 1, $"ящик={hasBox}, бонусов {Pickup.All.Count}");
+            Shot("19_pickup");
+            yield return Wait(0.1f);
+
+            // Бочка в комнате 3: взрыв, шрапнель, урон турели рядом
+            gm.DebugLoadRoom(2);
+            yield return Wait(0.5f);
+            p = gm.Player;
+            p.Invulnerable = true;
+            p.GetComponent<PlayerController>().enabled = false;
+            var barrel = FindAnyObjectByType<Barrel>();
+            bool hasBarrel = barrel != null;
+            Tank turret = null;
+            foreach (var t in Tank.All) if (t.Team == Team.Enemy && t.Enemy.symbol == "t") turret = t;
+            bool hadTurret = turret != null;
+            int turretHp = hadTurret ? turret.Hp : 0;
+            if (hasBarrel)
+                ProjectileSystem.I.Spawn(p, cannon, barrel.transform.position + Vector3.left * 1.4f + up, Vector3.right, 0f);
+            int maxAlive = 0;
+            for (int i = 0; i < 30; i++) { maxAlive = Mathf.Max(maxAlive, ProjectileSystem.I.CountAlive()); yield return null; }
+            Check("Бочка взрывается от пули", hasBarrel && barrel == null, hasBarrel ? (barrel == null ? "" : "бочка цела") : "бочки нет в комнате");
+            Check("Шрапнель: кольцо осколков", maxAlive >= GameManager.Cfg.shrapnelCount / 2, $"пуль в воздухе до {maxAlive}");
+            // Погибший танк уничтожается, и Unity считает ссылку на него равной null
+            Check("Взрыв ранит врага рядом", hadTurret && (turret == null || turret.IsDead || turret.Hp < turretHp),
+                !hadTurret ? "турели нет" : turret == null ? "турель уничтожена" : $"турель {turretHp} → {turret.Hp}");
+            Shot("20_barrel");
+            yield return Wait(0.1f);
+
+            // Ловушка в комнате 4 зовёт охотников
+            gm.DebugLoadRoom(3);
+            yield return Wait(0.5f);
+            p = gm.Player;
+            p.Invulnerable = true;
+            p.GetComponent<PlayerController>().enabled = false;
+            var trap = FindAnyObjectByType<NoiseTrap>();
+            var hunters = new List<Tank>();
+            foreach (var t in Tank.All) if (t.Team == Team.Enemy && t.Enemy.behaviour == EnemyBehaviour.Hunter) hunters.Add(t);
+            bool calmBefore = hunters.TrueForAll(h => !h.Brain.Alerted);
+            if (trap != null) p.TeleportTo(trap.transform.position);
+            yield return Wait(0.8f);
+            bool allAlerted = hunters.Count > 0 && hunters.TrueForAll(h => h.IsDead || h.Brain.Alerted);
+            Check("Ловушка-сирена поднимает всех охотников", trap != null && calmBefore && allAlerted, $"ловушка={trap != null}, спокойны до={calmBefore}, тревога после={allAlerted}");
+            Shot("21_trap");
+            yield return Wait(0.1f);
+
+            // Порталы в комнате 5: пуля и танк
+            gm.DebugLoadRoom(4);
+            yield return Wait(0.5f);
+            p = gm.Player;
+            p.Invulnerable = true;
+            var portals = new List<Teleporter>(Teleporter.All);
+            portals.Sort((a, b) => a.transform.position.x.CompareTo(b.transform.position.x));
+            bool paired = portals.Count == 2 && portals[0].Partner == portals[1];
+            var dCfg = GameManager.Cfg.Enemy('d');
+            var victim = Tank.Spawn(Team.Enemy, GameManager.Cfg.Hull(dCfg.hullId), GameManager.Cfg.Turret(dCfg.turretId), dCfg,
+                CellToWorld(15, 6, 21, 13), Quaternion.identity, gm.LevelRoot);
+            // Второй враг держит комнату «незачищенной», пока идёт тест
+            var keeper = Tank.Spawn(Team.Enemy, GameManager.Cfg.Hull(dCfg.hullId), GameManager.Cfg.Turret(dCfg.turretId), dCfg,
+                CellToWorld(7, 1, 21, 13), Quaternion.identity, gm.LevelRoot);
+            foreach (var t in new List<Tank>(Tank.All))
+                if (t.Team == Team.Enemy && t != victim && t != keeper) t.TakeDamage(new DamageInfo { amount = 999, source = victim, point = t.transform.position, direction = Vector3.forward });
+            yield return Wait(0.3f);
+            // Пуля летит влево в левый портал, выходит из правого — и попадает в мишень «за спиной»
+            ProjectileSystem.I.Spawn(p, cannon, CellToWorld(6, 6, 21, 13) + up, Vector3.left, 0f);
+            yield return Wait(1.2f);
+            Check("Портал переносит пулю", paired && (victim.IsDead || victim.Hp < victim.MaxHp), $"порталов {portals.Count}, мишень {victim.Hp}/{victim.MaxHp}");
+            p.GetComponent<PlayerController>().enabled = true;
+            p.TeleportTo(CellToWorld(1, 6, 21, 13));
+            yield return Wait(1f);
+            float tp0 = p.LastTeleport;
+            yield return Hold(1.2f, Key.D);
+            Check("Портал переносит танк", p.LastTeleport > tp0 && p.transform.position.x > 5f, $"x={p.transform.position.x:F1}");
+            Shot("22_portal");
+            yield return Wait(0.1f);
+
+            // Щитоносец: спереди пуля отражается, сзади — ранит
+            gm.DebugLoadRoom(0);
+            yield return Wait(0.5f);
+            p = gm.Player;
+            p.Invulnerable = true;
+            p.GetComponent<PlayerController>().enabled = false;
+            var qCfg = GameManager.Cfg.Enemy('q');
+            var shield = Tank.Spawn(Team.Enemy, GameManager.Cfg.Hull(qCfg.hullId), GameManager.Cfg.Turret(qCfg.turretId), qCfg,
+                CellToWorld(6, 9, 21, 13), Quaternion.identity, gm.LevelRoot);
+            KillEnemiesExcept(shield);
+            yield return Wait(0.3f);
+            shield.Brain.enabled = false;
+            shield.Visual.SetTurretDirection(Vector3.forward);
+            yield return Wait(0.3f);
+            Vector3 front = Prims.Flat(shield.Visual.TurretPivot.forward).normalized;
+            int hp0 = shield.Hp;
+            ProjectileSystem.I.Spawn(p, cannon, shield.transform.position + front * 2.2f + up, -front, 0f);
+            yield return Wait(0.5f);
+            int hpFront = shield.Hp;
+            ProjectileSystem.I.Spawn(p, cannon, shield.transform.position - front * 2.2f + up, front, 0f);
+            yield return Wait(0.5f);
+            Check("Щитоносец: щит спереди держит пулю", shield.HasFrontShield && hpFront == hp0, $"броня {hp0} → {hpFront}");
+            Check("Щитоносец: сзади пробивается", shield.IsDead || shield.Hp < hpFront, $"броня {hpFront} → {shield.Hp}");
+            Shot("23_shield_enemy");
+            yield return Wait(0.1f);
+            p.Invulnerable = false;
         }
 
         static void Fire(Tank t, Vector3 dir)

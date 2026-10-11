@@ -11,6 +11,18 @@ namespace PulyaDura
         float charge;
 
         public bool Charging { get; private set; }
+        /// <summary>Бонус «Ваншот»: сколько выстрелов убивают с одного попадания.</summary>
+        public int PowerShots { get; set; }
+        /// <summary>Бонус «Метка»: сколько выстрелов подсвечивают врага при попадании.</summary>
+        public int MarkShots { get; set; }
+
+        ShotMods TakeMods()
+        {
+            var mods = new ShotMods { power = PowerShots > 0, mark = MarkShots > 0 };
+            if (PowerShots > 0) PowerShots--;
+            if (MarkShots > 0) MarkShots--;
+            return mods;
+        }
         public bool Ready => cooldown <= 0f && !Charging;
         public float Reload01 => cfg.reload <= 0f ? 1f : 1f - Mathf.Clamp01(cooldown / cfg.reload);
         public float Charge01 => cfg.chargeTime <= 0f ? 0f : Mathf.Clamp01(charge / cfg.chargeTime);
@@ -57,13 +69,14 @@ namespace PulyaDura
             Vector3 origin = tank.ShotOrigin;
             Vector3 fwd = AimDirection;
             float muzzle = Vector3.Distance(Prims.Flat(tank.Visual.Muzzle.position), Prims.Flat(origin));
+            var mods = TakeMods();
 
             for (int i = 0; i < cfg.pellets; i++)
             {
                 float angle = cfg.pellets > 1
                     ? Mathf.Lerp(-cfg.spread * 0.5f, cfg.spread * 0.5f, i / (cfg.pellets - 1f)) + Random.Range(-2f, 2f)
                     : 0f;
-                ProjectileSystem.I.Spawn(tank, cfg, origin, Quaternion.Euler(0f, angle, 0f) * fwd, muzzle);
+                ProjectileSystem.I.Spawn(tank, cfg, origin, Quaternion.Euler(0f, angle, 0f) * fwd, muzzle, mods);
             }
             AfterShot(fwd, cfg.pellets > 1 ? 0.22f : cfg.damage >= 2 ? 0.16f : 0.06f);
         }
@@ -72,7 +85,7 @@ namespace PulyaDura
         {
             cooldown = cfg.reload;
             Vector3 fwd = AimDirection;
-            ProjectileSystem.I.FireRail(tank, cfg, tank.ShotOrigin, fwd);
+            ProjectileSystem.I.FireRail(tank, cfg, tank.ShotOrigin, fwd, TakeMods());
             AfterShot(fwd, 0.35f);
         }
 
