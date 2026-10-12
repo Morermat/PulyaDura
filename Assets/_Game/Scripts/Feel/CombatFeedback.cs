@@ -25,7 +25,6 @@ namespace PulyaDura
         void OnDamaged(Tank t, DamageInfo d)
         {
             if (t.IsDead) return;
-            ui.Floating(t.transform.position + Vector3.up * 1.1f, "-" + d.amount, t.Team == Team.Player ? UiKit.Danger : UiKit.TextColor, 30);
             if (t.Team == Team.Player)
             {
                 PostFx.I.Hurt();
@@ -64,11 +63,11 @@ namespace PulyaDura
                 KillKind.TripleRicochet => "ТРОЙНОЙ РИКОШЕТ!",
                 KillKind.DoubleRicochet => "ДВОЙНОЙ РИКОШЕТ!",
                 KillKind.Ricochet => "РИКОШЕТ!",
-                _ => "ЕСТЬ!",
+                _ => "",
             };
             Color color = kind is KillKind.Self or KillKind.Betrayal ? UiKit.Enemy
                 : kind is KillKind.Ricochet or KillKind.DoubleRicochet or KillKind.TripleRicochet or KillKind.Explosion || streak > 1 ? UiKit.Danger : UiKit.Accent;
-            ui.Floating(pos + Vector3.up * 1.5f, label, color, 46);
+            if (label.Length > 0) ui.Floating(pos + Vector3.up * 1.5f, label, color, 40);
 
             if (kind is KillKind.DoubleRicochet or KillKind.TripleRicochet or KillKind.Explosion || (t.Enemy != null && t.Enemy.boss))
             {

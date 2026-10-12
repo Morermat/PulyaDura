@@ -36,8 +36,16 @@ namespace PulyaDura
         };
         [Range(0f, 1f)] public float volume = 1f;
 
-        AudioSource source;
+        AudioSource source, lineSource;
+        readonly Dictionary<string, AudioClip> lines = new();
         Coroutine running;
+        /// <summary>Доли на слово распева: голос медленный и пафосный, слову нужно время прозвучать.</summary>
+        const int BeatsPerWord = 2;
+        /// <summary>Сколько секунд в конце каждого клипа — хвост реверберации зала (не речь).</summary>
+        const float ReverbTail = 2.2f;
+
+        public int LinesSpoken { get; private set; }
+        public string LastLine { get; private set; }
         int lastVariant = -1;
 
         public int WordsSpoken { get; private set; }
@@ -55,7 +63,40 @@ namespace PulyaDura
             source = gameObject.AddComponent<AudioSource>();
             source.playOnAwake = false;
             source.spatialBlend = 0f;
-            source.reverbZoneMix = 0.35f; // голос чуть звучит в комнате
+            source.reverbZoneMix = 0f; // зал уже «вшит» в запись голоса
+            lineSource = gameObject.AddComponent<AudioSource>();
+            lineSource.playOnAwake = false;
+            lineSource.spatialBlend = 0f;
+            lineSource.reverbZoneMix = 0f;
+        }
+
+        /// <summary>
+        /// Реплика диктора (Resources/Audio/line_*.wav) с субтитром внизу экрана.
+        /// Новая реплика обрывает предыдущую; музыка приглушается на время речи.
+        /// Если клипа нет, показывается только субтитр. Возвращает длительность речи (без хвоста зала).
+        /// </summary>
+        public float Say(string clipName, string subtitle = "")
+        {
+            if (!lines.TryGetValue(clipName, out var clip))
+                lines[clipName] = clip = Resources.Load<AudioClip>("Audio/" + clipName);
+            float speech = clip != null ? Mathf.Max(0.6f, clip.length - ReverbTail) : 2.5f;
+            if (clip != null)
+            {
+                lineSource.Stop();
+                lineSource.clip = clip;
+                lineSource.volume = volume;
+                lineSource.Play();
+                MusicDirector.I?.Duck(speech + 0.6f);
+            }
+            if (!string.IsNullOrEmpty(subtitle) && GameManager.I != null) GameManager.I.UI.Subtitle(subtitle, speech + 1.5f);
+            LinesSpoken++;
+            LastLine = clipName;
+            return speech;
+        }
+
+        public void StopLine()
+        {
+            if (lineSource != null) lineSource.Stop();
         }
 
         float Beat => MusicDirector.I != null ? MusicDirector.I.BeatLength : 0.6f;
@@ -76,7 +117,7 @@ namespace PulyaDura
             lastVariant = variant;
             float wait = MusicDirector.I != null ? MusicDirector.I.TimeToNextBeat : 0f;
             running = StartCoroutine(Run(variants[variant], words, slam, pitch, subtitle, wait));
-            return wait + words * Beat / pitch;
+            return wait + words * Beat * BeatsPerWord / pitch;
         }
 
         public void Stop()
@@ -95,11 +136,11 @@ namespace PulyaDura
                 var clip = first ? v.first : v.second;
                 source.pitch = pitch;
                 if (clip != null) source.PlayOneShot(clip, volume);
-                MusicDirector.I?.Duck(Beat * 1.5f);
+                MusicDirector.I?.Duck(Beat * BeatsPerWord * 1.2f);
                 if (slam) GameManager.I.UI.Slam(first ? v.firstText : v.secondText, first ? UiKit.Accent : UiKit.Danger, subtitle);
                 CameraRig.I.Shake(0.22f);
                 WordsSpoken++;
-                yield return new WaitForSecondsRealtime(Beat / pitch);
+                yield return new WaitForSecondsRealtime(Beat * BeatsPerWord / pitch);
             }
             if (slam) GameManager.I.UI.EndSlam();
             running = null;

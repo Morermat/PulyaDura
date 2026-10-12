@@ -91,7 +91,7 @@ namespace PulyaDura
             var box = Prims.Part("DecorSupply", PrimitiveType.Cube, transform, new Vector3(1.6f, 0.25f, 1.2f), new Vector3(0.5f, 0.5f, 0.5f), Mats.Crate, Quaternion.Euler(0f, 18f, 0f));
             var boxGlow = new MaterialPropertyBlock();
             boxGlow.SetColor(Mats.BaseColor, new Color(0.1f, 0.3f, 0.14f));
-            boxGlow.SetColor(Mats.EmissionColor, new Color(0.4f, 2.8f, 0.7f) * 0.8f);
+            boxGlow.SetColor(Mats.EmissionColor, new Color(0.3f, 1.7f, 0.45f) * 0.55f);
             box.SetPropertyBlock(boxGlow);
 
             // Кольцо эха на полу

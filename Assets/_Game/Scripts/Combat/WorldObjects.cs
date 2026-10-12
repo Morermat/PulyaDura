@@ -9,7 +9,7 @@ namespace PulyaDura
     /// <summary>Зелёный ящик снабжения: ломается как обычный, из него выпадает бонус.</summary>
     public class SupplyBox : Crate
     {
-        static readonly Color Green = new(0.4f, 2.8f, 0.7f);
+        static readonly Color Green = new(0.3f, 1.7f, 0.45f);
         protected override Color BreakColor => Green;
 
         protected override void OnBroken(DamageInfo info)
@@ -36,10 +36,10 @@ namespace PulyaDura
         public static Color ColorOf(PickupType t) => t switch
         {
             // Только синий, красный и белый: аптечка белая, щит синий, ваншот красный, метка голубовато-белая
-            PickupType.Heal => new Color(0.4f, 2.8f, 0.6f),
-            PickupType.Shield => new Color(0.4f, 1.4f, 3f),
-            PickupType.OneShot => new Color(3f, 0.35f, 0.3f),
-            _ => new Color(1.3f, 2f, 3f),
+            PickupType.Heal => new Color(0.3f, 1.7f, 0.4f),
+            PickupType.Shield => new Color(0.35f, 0.75f, 1.6f),
+            PickupType.OneShot => new Color(1.9f, 0.2f, 0.18f),
+            _ => new Color(1.1f, 1.3f, 1.6f),
         };
 
         public static string TitleOf(PickupType t) => t switch

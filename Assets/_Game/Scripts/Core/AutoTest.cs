@@ -134,6 +134,7 @@ namespace PulyaDura
             yield return Wait(0.3f);
             Check("Enter в гараже начинает забег", gm.State == GameState.Playing, $"state={gm.State}");
             Check("В первой комнате под танком подсказка клавиш", GameObject.Find("Tutorial") != null);
+            Check("Диктор произносит подсказку первой комнаты", Announcer.I.LastLine == "line_hint_1" && Resources.Load<AudioClip>("Audio/line_hint_1") != null, $"последняя реплика: {Announcer.I.LastLine}");
             Shot("02_room1_start");
             yield return Wait(0.6f);
 

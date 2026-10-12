@@ -17,17 +17,18 @@ namespace PulyaDura
     /// </summary>
     public static class UiKit
     {
-        public static readonly Color PanelFill = new(0.025f, 0.05f, 0.08f, 0.9f);
-        public static readonly Color Line = new(0.36f, 0.82f, 1f, 0.38f);
+        // Палитра: холодная сталь и тёмная кровь. Никакого неона — интерфейс как приборы в тёмном ангаре
+        public static readonly Color PanelFill = new(0.018f, 0.022f, 0.028f, 0.9f);
+        public static readonly Color Line = new(0.6f, 0.7f, 0.8f, 0.2f);
         /// <summary>Заливка выбранной кнопки и главной кнопки действия.</summary>
-        public static readonly Color SelectedFill = new(0.08f, 0.42f, 0.56f, 1f);
-        public static readonly Color IdleFill = new(0.05f, 0.1f, 0.15f, 0.95f);
-        public static readonly Color Accent = new(0.36f, 0.88f, 1f);
-        public static readonly Color AccentDim = new(0.36f, 0.88f, 1f, 0.18f);
-        public static readonly Color Danger = new(1f, 0.36f, 0.32f);
-        public static readonly Color Enemy = new(1f, 0.32f, 0.28f);
-        public static readonly Color TextColor = new(0.92f, 0.95f, 0.98f);
-        public static readonly Color Muted = new(0.55f, 0.62f, 0.7f);
+        public static readonly Color SelectedFill = new(0.14f, 0.2f, 0.26f, 1f);
+        public static readonly Color IdleFill = new(0.03f, 0.04f, 0.05f, 0.95f);
+        public static readonly Color Accent = new(0.64f, 0.76f, 0.86f);
+        public static readonly Color AccentDim = new(0.64f, 0.76f, 0.86f, 0.18f);
+        public static readonly Color Danger = new(0.82f, 0.2f, 0.2f);
+        public static readonly Color Enemy = new(0.78f, 0.18f, 0.18f);
+        public static readonly Color TextColor = new(0.84f, 0.87f, 0.9f);
+        public static readonly Color Muted = new(0.45f, 0.5f, 0.56f);
         public static readonly Color Faint = new(1f, 1f, 1f, 0.1f);
 
         static readonly Font[] fonts = new Font[5];
@@ -128,7 +129,8 @@ namespace PulyaDura
             rt.offsetMin = new Vector2(-Icons.GlowMargin, -Icons.GlowMargin);
             rt.offsetMax = new Vector2(Icons.GlowMargin, Icons.GlowMargin);
             rt.SetAsFirstSibling();
-            var img = Fill(rt, new Color(color.r, color.g, color.b, alpha));
+            // Свечение приглушено вдвое: рамки едва светятся, а не горят
+            var img = Fill(rt, new Color(color.r, color.g, color.b, alpha * 0.45f));
             img.sprite = Icons.Glow;
             img.type = Image.Type.Sliced;
             img.raycastTarget = false;
@@ -140,7 +142,7 @@ namespace PulyaDura
         {
             button.GetComponent<Image>().color = on ? SelectedFill : IdleFill;
             FrameOf(button).color = on ? Accent : Line;
-            Glow(button, Accent, 0.6f).gameObject.SetActive(on);
+            Glow(button, Accent, 0.5f).gameObject.SetActive(on);
             var icon = button.transform.Find("Icon");
             if (icon != null) icon.GetComponent<Image>().color = on ? Color.white : Muted;
         }

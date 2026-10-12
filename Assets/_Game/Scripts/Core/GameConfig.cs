@@ -133,7 +133,7 @@ namespace PulyaDura
         [Tooltip("За сколько секунд гаснет подсвеченная стена")] public float revealFade = 2.6f;
         [Tooltip("Радиус, в котором танк «нащупывает» стены")] public float touchRadius = 2.3f;
         public float startRevealSpeed = 26f;
-        [Tooltip("Яркость контура стены, которую уже видели (0 — память выключена)")] public float memoryGlow = 0.16f;
+        [Tooltip("Яркость контура стены, которую уже видели (0 — память выключена)")] public float memoryGlow = 0.11f;
 
         [Header("Шум двигателя")]
         [Tooltip("Доля скорости, выше которой танк шумит")] public float loudSpeed = 0.7f;
@@ -146,33 +146,33 @@ namespace PulyaDura
         [Tooltip("Яркость пули растёт с каждым отскоком")] public float glowGrowthPerBounce = 0.45f;
 
         [Header("Свет")]
-        public Color playerLightColor = new(0.95f, 0.97f, 1f);
+        public Color playerLightColor = new(0.78f, 0.86f, 1f);
         public float playerLightRange = 6.5f;
         public float playerLightIntensity = 3.2f;
-        public Color ambient = new(0.025f, 0.03f, 0.045f);
+        public Color ambient = new(0.012f, 0.015f, 0.022f);
 
         [Header("Цвета мира")]
         public Color floorColor = new(0.07f, 0.075f, 0.09f);
-        [ColorUsage(false, true)] public Color floorGridGlow = new(0.004f, 0.007f, 0.012f);
+        [ColorUsage(false, true)] public Color floorGridGlow = new(0.0025f, 0.0035f, 0.0055f);
         public Color wallColor = new(0.08f, 0.085f, 0.1f);
         public Color crateColor = new(0.12f, 0.12f, 0.14f);
-        [ColorUsage(false, true)] public Color echoColor = new(0.25f, 0.85f, 1.5f);
-        [ColorUsage(false, true)] public Color enemyEchoColor = new(1.5f, 0.22f, 0.3f);
-        [ColorUsage(false, true)] public Color tempWallColor = new(0.4f, 1.2f, 3f);
+        [ColorUsage(false, true)] public Color echoColor = new(0.5f, 0.72f, 1.1f);
+        [ColorUsage(false, true)] public Color enemyEchoColor = new(0.95f, 0.08f, 0.1f);
+        [ColorUsage(false, true)] public Color tempWallColor = new(0.35f, 0.6f, 1.1f);
 
         [Header("Цвета танков")]
-        public Color playerBody = new(0.12f, 0.26f, 0.4f);
-        [ColorUsage(false, true)] public Color playerAccent = new(0.35f, 1.5f, 3f);
-        public Color enemyBody = new(0.3f, 0.11f, 0.1f);
-        [ColorUsage(false, true)] public Color enemyAccent = new(3f, 0.35f, 0.2f);
-        [ColorUsage(false, true)] public Color enemyReveal = new(1.4f, 0.16f, 0.1f);
+        public Color playerBody = new(0.1f, 0.14f, 0.2f);
+        [ColorUsage(false, true)] public Color playerAccent = new(0.42f, 0.7f, 1.3f);
+        public Color enemyBody = new(0.16f, 0.07f, 0.07f);
+        [ColorUsage(false, true)] public Color enemyAccent = new(1.6f, 0.15f, 0.1f);
+        [ColorUsage(false, true)] public Color enemyReveal = new(0.9f, 0.08f, 0.06f);
         public Color trackColor = new(0.05f, 0.05f, 0.06f);
 
         [Header("Цвета снарядов")]
-        [ColorUsage(false, true)] public Color bulletPlayer = new(0.45f, 2.2f, 3f);
+        [ColorUsage(false, true)] public Color bulletPlayer = new(0.6f, 1.05f, 1.8f);
         [Tooltip("Пуля игрока после отскока: теперь бьёт и его")]
-        [ColorUsage(false, true)] public Color bulletDanger = new(3f, 0.45f, 0.75f);
-        [ColorUsage(false, true)] public Color bulletEnemy = new(3f, 0.3f, 0.25f);
+        [ColorUsage(false, true)] public Color bulletDanger = new(1.7f, 0.18f, 0.28f);
+        [ColorUsage(false, true)] public Color bulletEnemy = new(2.1f, 0.12f, 0.1f);
 
         public HullConfig Hull(string id) => hulls.Find(h => h.id == id) ?? hulls[0];
         public TurretConfig Turret(string id) => turrets.Find(t => t.id == id) ?? turrets[0];
@@ -240,14 +240,14 @@ namespace PulyaDura
 
         static List<EnemyConfig> DefaultEnemies() => new()
         {
-            new EnemyConfig { symbol = "d", title = "Мишень", accent = new Color(1.3f, 1.3f, 1.3f), hullId = "barsuk", turretId = "cannon", behaviour = EnemyBehaviour.Dummy, hpOverride = 2 },
-            new EnemyConfig { symbol = "r", title = "Новичок", accent = new Color(2.6f, 2.3f, 0.3f), hullId = "strizh", turretId = "cannon", behaviour = EnemyBehaviour.Static, hpOverride = 2, damageOverride = 1, fireInterval = 3f, aimError = 9f, turretTurnSpeed = 90f, sight = 8f, lead = 0f },
-            new EnemyConfig { symbol = "t", title = "Турель", accent = new Color(3f, 1.2f, 0.15f), hullId = "begemot", turretId = "cannon", behaviour = EnemyBehaviour.Static, hpOverride = 4, damageOverride = 1, fireInterval = 1.8f, aimError = 5f, turretTurnSpeed = 120f, hearing = 1.3f, sight = 9f, lead = 0.5f },
-            new EnemyConfig { symbol = "h", title = "Охотник", accent = new Color(3f, 0.3f, 0.2f), hullId = "strizh", turretId = "plasma", behaviour = EnemyBehaviour.Hunter, fireInterval = 0.9f, aimError = 7f, turretTurnSpeed = 200f, speedMultiplier = 0.7f, preferRange = 6f },
-            new EnemyConfig { symbol = "g", title = "Громила", accent = new Color(1.6f, 0.4f, 3f), hullId = "barsuk", turretId = "shotgun", behaviour = EnemyBehaviour.Hunter, fireInterval = 1.6f, aimError = 4f, turretTurnSpeed = 160f, speedMultiplier = 0.8f, preferRange = 3.5f, sight = 6f },
-            new EnemyConfig { symbol = "s", title = "Снайпер", accent = new Color(3f, 0.4f, 1.8f), hullId = "barsuk", turretId = "cannon", behaviour = EnemyBehaviour.Hunter, preferRange = 10f, speedMultiplier = 0.5f, bankShots = true, fireInterval = 2.4f, aimError = 1.5f, turretTurnSpeed = 110f, hearing = 1.7f, sight = 12f, blindFire = false, lead = 1f },
-            new EnemyConfig { symbol = "q", title = "Щитоносец", accent = new Color(0.3f, 2.6f, 2.2f), hullId = "barsuk", turretId = "cannon", behaviour = EnemyBehaviour.Hunter, hpOverride = 5, frontShield = true, fireInterval = 1.9f, aimError = 4f, turretTurnSpeed = 130f, speedMultiplier = 0.7f, preferRange = 5f, sight = 8f },
-            new EnemyConfig { symbol = "B", title = "Мамонт", accent = new Color(3f, 0.1f, 0.25f), hullId = "begemot", turretId = "rail", behaviour = EnemyBehaviour.Hunter, hpOverride = 14, boss = true, scale = 1.4f, bankShots = true, fireInterval = 2.6f, aimError = 2f, turretTurnSpeed = 90f, speedMultiplier = 0.85f, memory = 6f, preferRange = 7f, sight = 9f },
+            new EnemyConfig { symbol = "d", title = "Мишень", accent = new Color(0.81f, 0.81f, 0.81f), hullId = "barsuk", turretId = "cannon", behaviour = EnemyBehaviour.Dummy, hpOverride = 2 },
+            new EnemyConfig { symbol = "r", title = "Новичок", accent = new Color(1.61f, 1.43f, 0.19f), hullId = "strizh", turretId = "cannon", behaviour = EnemyBehaviour.Static, hpOverride = 2, damageOverride = 1, fireInterval = 3f, aimError = 9f, turretTurnSpeed = 90f, sight = 8f, lead = 0f },
+            new EnemyConfig { symbol = "t", title = "Турель", accent = new Color(1.86f, 0.74f, 0.09f), hullId = "begemot", turretId = "cannon", behaviour = EnemyBehaviour.Static, hpOverride = 4, damageOverride = 1, fireInterval = 1.8f, aimError = 5f, turretTurnSpeed = 120f, hearing = 1.3f, sight = 9f, lead = 0.5f },
+            new EnemyConfig { symbol = "h", title = "Охотник", accent = new Color(1.86f, 0.19f, 0.12f), hullId = "strizh", turretId = "plasma", behaviour = EnemyBehaviour.Hunter, fireInterval = 0.9f, aimError = 7f, turretTurnSpeed = 200f, speedMultiplier = 0.7f, preferRange = 6f },
+            new EnemyConfig { symbol = "g", title = "Громила", accent = new Color(0.99f, 0.25f, 1.86f), hullId = "barsuk", turretId = "shotgun", behaviour = EnemyBehaviour.Hunter, fireInterval = 1.6f, aimError = 4f, turretTurnSpeed = 160f, speedMultiplier = 0.8f, preferRange = 3.5f, sight = 6f },
+            new EnemyConfig { symbol = "s", title = "Снайпер", accent = new Color(1.86f, 0.25f, 1.12f), hullId = "barsuk", turretId = "cannon", behaviour = EnemyBehaviour.Hunter, preferRange = 10f, speedMultiplier = 0.5f, bankShots = true, fireInterval = 2.4f, aimError = 1.5f, turretTurnSpeed = 110f, hearing = 1.7f, sight = 12f, blindFire = false, lead = 1f },
+            new EnemyConfig { symbol = "q", title = "Щитоносец", accent = new Color(0.19f, 1.61f, 1.36f), hullId = "barsuk", turretId = "cannon", behaviour = EnemyBehaviour.Hunter, hpOverride = 5, frontShield = true, fireInterval = 1.9f, aimError = 4f, turretTurnSpeed = 130f, speedMultiplier = 0.7f, preferRange = 5f, sight = 8f },
+            new EnemyConfig { symbol = "B", title = "Мамонт", accent = new Color(1.86f, 0.06f, 0.15f), hullId = "begemot", turretId = "rail", behaviour = EnemyBehaviour.Hunter, hpOverride = 14, boss = true, scale = 1.4f, bankShots = true, fireInterval = 2.6f, aimError = 2f, turretTurnSpeed = 90f, speedMultiplier = 0.85f, memory = 6f, preferRange = 7f, sight = 9f },
         };
     }
 }

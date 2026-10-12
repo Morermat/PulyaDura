@@ -305,7 +305,7 @@ namespace PulyaDura
             if (supply)
             {
                 // Зелёный ящик в темноте не виден, как и всё остальное, но эхо высвечивает его ярко-зелёным
-                wall.revealTint = new Color(0.4f, 2.8f, 0.7f);
+                wall.revealTint = new Color(0.3f, 1.7f, 0.45f);
                 r.gameObject.AddComponent<SupplyBox>();
             }
             else r.gameObject.AddComponent<Crate>();

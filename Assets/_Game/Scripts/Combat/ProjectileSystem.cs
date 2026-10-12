@@ -117,7 +117,7 @@ namespace PulyaDura
         }
 
         /// <summary>Пуля игрока всегда синяя: с каждым отскоком светлее (ближе к белому), но не красная.</summary>
-        public Color PlayerBulletColor(int bounces) => Color.Lerp(cfg.bulletPlayer, new Color(2.2f, 2.7f, 3f), Mathf.Clamp01(bounces * 0.4f));
+        public Color PlayerBulletColor(int bounces) => Color.Lerp(cfg.bulletPlayer, new Color(1.5f, 1.7f, 2f), Mathf.Clamp01(bounces * 0.4f));
 
         float EchoRadius(Projectile p) => p.cfg.echoRadius * (1f + cfg.echoGrowthPerBounce * p.bouncesDone);
 

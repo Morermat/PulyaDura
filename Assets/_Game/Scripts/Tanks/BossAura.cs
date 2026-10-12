@@ -24,7 +24,8 @@ namespace PulyaDura
             if (Enraged && !announcedRage)
             {
                 announcedRage = true;
-                GameManager.I.UI.Banner("ЯРОСТЬ", $"{tank.Enemy.title} бьёт двумя лучами", UiKit.Danger, 1.6f);
+                GameManager.I.UI.Banner("ЯРОСТЬ", "", UiKit.Danger, 1.6f);
+                Announcer.I.Say("line_rage");
                 CameraRig.I.Shake(0.5f);
             }
             timer -= Time.deltaTime;
