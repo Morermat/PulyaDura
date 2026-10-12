@@ -723,6 +723,19 @@ namespace PulyaDura
             p.TakeDamage(new DamageInfo { amount = 1, source = null, point = p.transform.position, direction = Vector3.forward });
             Check("Залп дробовика бьёт всеми дробинами, другой выстрел сразу после — нет", hpV - afterVolley == 2 && p.Hp == afterVolley,
                 $"броня {hpV} → {afterVolley} → {p.Hp}");
+            // Стенка: пуля впитывается и отнимает прочность; у зеркала 2 применения за комнату
+            var wall = TempWall.Spawn(p.transform.position + Vector3.forward * 3f, Vector3.forward, 6f);
+            yield return null;
+            int before = ProjectileSystem.I.CountAlive();
+            ProjectileSystem.I.Spawn(target != null ? target : p, cfg.Turret("cannon"), p.transform.position + Vector3.forward * 1.2f + up, Vector3.forward, 0f);
+            yield return Wait(0.5f);
+            Check("Стенка впитывает пулю и теряет прочность", wall != null && wall.Hp < TempWall.MaxHp, wall != null ? $"прочность {wall.Hp}/{TempWall.MaxHp}" : "стенки нет");
+            gm.SelectHull(cfg.hulls.FindIndex(h => h.ability == AbilityType.Mirror));
+            gm.DebugLoadRoom(0);
+            yield return Wait(0.5f);
+            int charges0 = gm.Player.Ability.ChargesLeft;
+            gm.Player.Ability.TryActivate(Vector3.zero, Vector3.forward);
+            Check("Зеркало: 2 применения за комнату, одно потрачено", charges0 == 2 && gm.Player.Ability.ChargesLeft == 1, $"{charges0} → {gm.Player.Ability.ChargesLeft}");
             gm.SelectHull(1);
         }
 

@@ -99,6 +99,9 @@ namespace PulyaDura.EditorTools
         [MenuItem("Пуля — дура/Релиз для жюри: Linux")]
         public static void BuildReleaseLinux() => BuildRelease(BuildTarget.StandaloneLinux64, "Builds/Release/Linux/PulyaDura.x86_64");
 
+        [MenuItem("Пуля — дура/Релиз для жюри: macOS")]
+        public static void BuildReleaseMac() => BuildRelease(BuildTarget.StandaloneOSX, "Builds/Release/Mac/PulyaDura.app");
+
         /// <summary>Релизный билд: без пометки Development Build и без отладочных клавиш F1–F8.</summary>
         static void BuildRelease(BuildTarget target, string path)
         {

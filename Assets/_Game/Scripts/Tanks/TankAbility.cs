@@ -17,7 +17,11 @@ namespace PulyaDura
         /// <summary>Скилл только что перезарядился (для вспышки плитки в HUD).</summary>
         public float ReadySince { get; private set; } = -10f;
 
-        public bool Ready => cooldown <= 0f;
+        /// <summary>Сколько применений осталось в этой комнате; −1 — без ограничения. Танк создаётся заново в каждой комнате.</summary>
+        public int ChargesLeft { get; private set; } = -1;
+        TempWall placedWall;
+
+        public bool Ready => cooldown <= 0f && ChargesLeft != 0;
         public float Cooldown01 => hull.abilityCooldown <= 0f ? 1f : 1f - Mathf.Clamp01(cooldown / hull.abilityCooldown);
         public string Title => hull.abilityTitle;
 
@@ -25,11 +29,20 @@ namespace PulyaDura
         {
             tank = owner;
             hull = owner.Hull;
+            ChargesLeft = hull.abilityCharges > 0 ? hull.abilityCharges : -1;
         }
 
         public void TryActivate(Vector3 moveDir, Vector3 aimDir)
         {
             if (tank.IsDead) return;
+            // Стенка уже стоит — повторное нажатие убирает её (заряд не тратится)
+            if (hull.ability == AbilityType.Wall && placedWall != null)
+            {
+                placedWall.Remove();
+                placedWall = null;
+                Sfx.I.Play(SfxId.WallUp, transform.position, 0.6f, 0.7f);
+                return;
+            }
             if (!Ready)
             {
                 Sfx.I.Play(SfxId.Empty, transform.position, 0.5f);
@@ -37,6 +50,7 @@ namespace PulyaDura
             }
             cooldown = hull.abilityCooldown;
             active = hull.abilityDuration;
+            if (ChargesLeft > 0) ChargesLeft--;
 
             switch (hull.ability)
             {
@@ -58,7 +72,7 @@ namespace PulyaDura
                     break;
 
                 case AbilityType.Wall:
-                    TempWall.Spawn(transform.position + aimDir * 2.1f, aimDir, hull.abilityDuration);
+                    placedWall = TempWall.Spawn(transform.position + aimDir * 2.1f, aimDir, hull.abilityDuration);
                     Sfx.I.Play(SfxId.WallUp, transform.position);
                     CameraRig.I.Shake(0.2f);
                     break;
@@ -109,13 +123,20 @@ namespace PulyaDura
         }
     }
 
-    /// <summary>Временная светящаяся стена «Бегемота»: укрытие и новый борт для рикошета.</summary>
+    /// <summary>
+    /// Временная стена «Бегемота»: укрытие с запасом прочности. Пули не отражает, а впитывает —
+    /// каждое попадание отнимает прочность (полоска над стеной). Пропадает по таймеру,
+    /// когда кончится прочность, или по повторному нажатию скилла.
+    /// </summary>
     public class TempWall : MonoBehaviour
     {
+        public const int MaxHp = 6;
         float life, t;
         WallBlock[] blocks;
+        Transform barFill;
+        public int Hp { get; private set; } = MaxHp;
 
-        public static void Spawn(Vector3 center, Vector3 facing, float lifetime)
+        public static TempWall Spawn(Vector3 center, Vector3 facing, float lifetime)
         {
             var cfg = GameManager.Cfg;
             facing = Prims.Flat(facing).normalized;
@@ -133,6 +154,7 @@ namespace PulyaDura
                 var r = Prims.Part("Block", PrimitiveType.Cube, root.transform, root.transform.InverseTransformPoint(p), size, Mats.Wall);
                 r.gameObject.layer = Layers.Wall;
                 r.gameObject.AddComponent<BoxCollider>();
+                r.gameObject.AddComponent<TempWallBlock>();
                 var wb = r.gameObject.AddComponent<WallBlock>();
                 wb.baseColor = cfg.tempWallColor;
                 wb.baseGlow = 0.9f;
@@ -143,11 +165,42 @@ namespace PulyaDura
                 Fx.I.Sparks(p, Vector3.up, cfg.tempWallColor, 10, 4f);
                 made++;
             }
-            if (made == 0) { Destroy(root); return; }
+            if (made == 0) { Destroy(root); return null; }
             var tw = root.AddComponent<TempWall>();
             tw.life = lifetime;
             tw.blocks = root.GetComponentsInChildren<WallBlock>();
+            foreach (var b in root.GetComponentsInChildren<TempWallBlock>()) b.Wall = tw;
+            // Полоска прочности над стеной: тёмная подложка и светлая заливка, которая сжимается от попаданий
+            var bg = Prims.Part("HpBg", PrimitiveType.Cube, root.transform, new Vector3(0f, cfg.wallHeight + 0.35f, 0f), new Vector3(2.2f, 0.05f, 0.16f), Mats.Unlit(new Color(0.04f, 0.04f, 0.05f)));
+            bg.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            var fill = Prims.Part("HpFill", PrimitiveType.Cube, root.transform, new Vector3(0f, cfg.wallHeight + 0.37f, 0f), new Vector3(2.16f, 0.05f, 0.12f), Mats.Unlit(cfg.tempWallColor));
+            fill.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+            tw.barFill = fill.transform;
             EchoSystem.I.Emit(center, 3f, cfg.tempWallColor, 0.6f);
+            return tw;
+        }
+
+        public void Damage(DamageInfo info)
+        {
+            if (Hp <= 0) return;
+            Hp = Mathf.Max(0, Hp - Mathf.Max(1, info.amount));
+            foreach (var b in blocks) if (b != null) b.Flash();
+            Sfx.I.Play(SfxId.Hit, transform.position, 0.7f, 0.8f);
+            float k = (float)Hp / MaxHp;
+            barFill.localScale = new Vector3(2.16f * k, 0.05f, 0.12f);
+            barFill.localPosition = new Vector3(-1.08f * (1f - k), barFill.localPosition.y, 0f);
+            if (Hp == 0) Remove();
+        }
+
+        /// <summary>Убрать стену сейчас: обломки и искры.</summary>
+        public void Remove()
+        {
+            if (!gameObject.activeSelf) return;
+            foreach (var b in blocks)
+                if (b != null) Fx.I.Sparks(b.transform.position, Vector3.up, GameManager.Cfg.tempWallColor, 10, 4f);
+            Sfx.I.Play(SfxId.CrateBreak, transform.position, 0.8f);
+            gameObject.SetActive(false);
+            Destroy(gameObject);
         }
 
         void Update()
@@ -165,5 +218,12 @@ namespace PulyaDura
                 Destroy(gameObject);
             }
         }
+    }
+
+    /// <summary>Блок временной стены: попадание (пуля, шрапнель, рельса) отнимает прочность всей стены.</summary>
+    public class TempWallBlock : MonoBehaviour, IDamageable
+    {
+        public TempWall Wall { get; set; }
+        public void TakeDamage(DamageInfo info) { if (Wall != null) Wall.Damage(info); }
     }
 }

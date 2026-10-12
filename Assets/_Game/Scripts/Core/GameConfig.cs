@@ -27,6 +27,7 @@ namespace PulyaDura
         [TextArea] public string abilityDescription;
         public float abilityCooldown = 6f;
         public float abilityDuration = 0f;
+        [Tooltip("Сколько раз скилл можно применить за комнату; 0 — без ограничения")] public int abilityCharges;
     }
 
     [Serializable]
@@ -193,16 +194,16 @@ namespace PulyaDura
                 id = "barsuk", title = "Барсук", style = HullStyle.Medium, description = "Средний, 5 брони",
                 maxHp = 5, speed = 5f, size = new Vector2(1.1f, 1.3f), height = 0.32f,
                 ability = AbilityType.Mirror, abilityTitle = "Зеркало",
-                abilityDescription = "3 с неуязвим, отражает пули",
-                abilityCooldown = 6f, abilityDuration = 3f
+                abilityDescription = "отражает пули · 2 за комнату",
+                abilityCooldown = 6f, abilityDuration = 3f, abilityCharges = 2
             },
             new HullConfig
             {
                 id = "begemot", title = "Бегемот", style = HullStyle.Heavy, description = "Медленный, 8 брони",
                 maxHp = 8, speed = 3.8f, size = new Vector2(1.3f, 1.5f), height = 0.4f,
                 ability = AbilityType.Wall, abilityTitle = "Стенка",
-                abilityDescription = "ставит укрытие на 6 с",
-                abilityCooldown = 8f, abilityDuration = 6f
+                abilityDescription = "укрытие · 2 за комнату",
+                abilityCooldown = 8f, abilityDuration = 6f, abilityCharges = 2
             },
         };
 

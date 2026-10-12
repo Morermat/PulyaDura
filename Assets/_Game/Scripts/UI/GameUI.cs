@@ -463,12 +463,13 @@ namespace PulyaDura
                 abilityIcon.color = ready ? Color.white : new Color(1f, 1f, 1f, 0.15f);
                 // Перезарядка — крупные секунды поверх иконки; готовность — свечение, которое вспыхивает в момент готовности
                 float left = (1f - p.Ability.Cooldown01) * p.Hull.abilityCooldown;
-                abilitySeconds.text = ready ? "" : left.ToString(left < 1f ? "0.0" : "0");
+                abilitySeconds.text = ready || p.Ability.ChargesLeft == 0 ? "" : left.ToString(left < 1f ? "0.0" : "0");
                 float flash = Mathf.Clamp01(1f - (Time.time - p.Ability.ReadySince) / 0.6f);
                 abilityGlow.gameObject.SetActive(ready);
                 abilityGlow.color = new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, 0.45f + 0.5f * flash);
                 abilityTile.rectTransform.localScale = Vector3.one * (1f + 0.08f * flash);
-                abilityKey.text = p.Hull.abilityTitle.ToUpper();
+                int charges = p.Ability.ChargesLeft;
+                abilityKey.text = charges < 0 ? p.Hull.abilityTitle.ToUpper() : $"{p.Hull.abilityTitle.ToUpper()} ×{charges}";
                 abilityKey.color = ready ? UiKit.Accent : UiKit.Muted;
                 UiKit.FrameOf(abilityTile).color = ready ? UiKit.Accent : UiKit.Line;
                 abilityKey.color = ready ? UiKit.Accent : UiKit.Muted;
