@@ -25,7 +25,6 @@ namespace PulyaDura
             {
                 announcedRage = true;
                 GameManager.I.UI.Banner("ЯРОСТЬ", "", UiKit.Danger, 1.6f);
-                Announcer.I.Say("line_rage");
                 CameraRig.I.Shake(0.5f);
             }
             timer -= Time.deltaTime;

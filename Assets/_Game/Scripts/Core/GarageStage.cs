@@ -48,7 +48,7 @@ namespace PulyaDura
 
         /// <summary>
         /// Композиция вокруг подиума — уголок игровой комнаты, а не случайные блоки:
-        /// слева угол из стеновых блоков, справа решётка и круглая колонна, впереди бочка и зелёный ящик,
+        /// слева угол из стеновых блоков, справа круглая колонна, впереди бочка и зелёный ящик,
         /// на полу кольцо эха. Всё подсвечено так, как это выглядит в игре после эха.
         /// </summary>
         void BuildDecor()
@@ -65,15 +65,6 @@ namespace PulyaDura
             // Слева угол комнаты: задняя стена и боковая, уходящая к камере
             for (int i = 0; i < 4; i++) Block(new Vector3(-2.4f + i * s, 0f, 4.2f));
             for (int i = 1; i < 4; i++) Block(new Vector3(-2.4f, 0f, 4.2f - i * s));
-
-            // Решётка продолжает заднюю стену вправо: стойки и две светлые перекладины
-            var dark = Mats.Lit(new Color(0.07f, 0.08f, 0.1f), 0.4f);
-            var bar = Mats.Unlit(new Color(0.9f, 1f, 1.15f) * 0.6f);
-            // Справа решётка продолжает заднюю стену
-            for (int i = 0; i <= 3; i++)
-                Prims.Part("FencePost", PrimitiveType.Cube, transform, new Vector3(0.75f + i * 0.55f, 0.38f, 4.2f), new Vector3(0.07f, 0.76f, 0.07f), dark);
-            foreach (float y in new[] { 0.32f, 0.66f })
-                Prims.Part("FenceBar", PrimitiveType.Cube, transform, new Vector3(1.575f, y, 4.2f), new Vector3(1.72f, 0.035f, 0.035f), bar).shadowCastingMode = ShadowCastingMode.Off;
 
             // Круглая колонна справа
             var pillar = new GameObject("DecorPillar");

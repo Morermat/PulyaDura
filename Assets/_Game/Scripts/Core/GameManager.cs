@@ -66,8 +66,7 @@ namespace PulyaDura
         readonly List<RoomData> endlessRooms = new();
         int endlessSeed;
         bool recordRun = true;
-        readonly HashSet<int> hintsSpoken = new();
-        static bool garageGreeted;
+        readonly HashSet<int> hintsShown = new();
         bool hurtThisRoom;
         bool lifeBonusPending;
 
@@ -178,13 +177,7 @@ namespace PulyaDura
             State = GameState.Garage;
             garage.Show(config.hulls[HullIndex], config.turrets[TurretIndex]);
             ui.ShowGarage();
-            Announcer.I.StopLine();
-            // Первый заход в гараж за сессию: диктор произносит девиз игры
-            if (!garageGreeted)
-            {
-                garageGreeted = true;
-                Announcer.I.Say("line_garage");
-            }
+
         }
 
         public void SelectHull(int i)
@@ -250,7 +243,7 @@ namespace PulyaDura
             recordRun = record;
             ContinueRoom = -1;
             endlessRooms.Clear();
-            hintsSpoken.Clear();
+            hintsShown.Clear();
             endlessSeed = Environment.TickCount;
             garage.Hide();
             LoadRoom(room);
@@ -288,7 +281,6 @@ namespace PulyaDura
             {
                 lifeBonusPending = false;
                 ui.Floating(level.PlayerSpawn + Vector3.up * 1.6f, "+1 ЖИЗНЬ", UiKit.Accent, 40);
-                Announcer.I.Say("line_life");
                 Sfx.I.Play(SfxId.Pickup, level.PlayerSpawn);
             }
             // Босс: имя во весь экран при входе
@@ -308,9 +300,8 @@ namespace PulyaDura
             State = GameState.Playing;
             ui.ShowHud();
             ui.ShowRoom(index, Endless ? 0 : rooms.Count, room.title, room.hint);
-            // Подсказку комнаты произносит диктор — один раз за забег (после смерти не повторяет)
-            if (!Endless && hintsSpoken.Add(index)) Announcer.I.Say($"line_hint_{index + 1}", room.hint);
-            else if (Endless && Boss != null && hintsSpoken.Add(index)) Announcer.I.Say("line_boss", "Босс");
+            // Подсказка комнаты — короткий субтитр внизу, один раз за забег (после смерти не повторяется)
+            if (!string.IsNullOrEmpty(room.hint) && hintsShown.Add(index)) ui.Subtitle(room.hint, 6f);
         }
 
         void Update()
@@ -429,9 +420,7 @@ namespace PulyaDura
                 : d.source != null && d.source.Enemy != null ? d.source.Enemy.title + (d.bounces > 0 ? ", рикошетом" : "")
                 : "Взрыв";
             ui.Banner(self ? "ПУЛЯ — ДУРА" : "ПОДБИТ", Lives > 0 ? $"жизней: {Lives}" : "", UiKit.Danger);
-            Announcer.I.Say(Lives <= 0 ? "line_gameover" : self ? "line_self" : "line_hit", cause);
-            // Убил сам себя — голос медленно и с издёвкой произносит название игры
-            if (self) Announcer.I.Chant(2, slam: false, pitch: 0.85f, variant: 0);
+            ui.Subtitle(cause, 2.5f);
             AddScore(-500, null);
             Sfx.I.Play(SfxId.Death);
             TimeController.I.SlowMo(0.25f, 0.8f);
@@ -462,7 +451,7 @@ namespace PulyaDura
             Sfx.I.Play(SfxId.RoomClear);
             bool last = !Endless && RoomIndex + 1 >= rooms.Count;
             if (Player != null) EchoSystem.I.RevealAll(Player.transform.position, 0.9f);
-            // Распев в такт музыке, как в концовке SUPERHOT: после последней комнаты — длиннее
+            // Зачистка — короткий баннер; голос «ПУЛЯ. ДУРА.» звучит только на победе
             string next = last ? "ВСЕ КОМНАТЫ ЗАЧИЩЕНЫ" : $"ДАЛЬШЕ: {RoomAt(RoomIndex + 1).title.ToUpper()}";
             // В бесконечном режиме каждые 5 комнат — жизнь в награду
             if (Endless && (RoomIndex + 1) % 5 == 0 && Lives < MaxLives)
@@ -471,7 +460,13 @@ namespace PulyaDura
                 lifeBonusPending = true;
                 next += "  ·  +1 ЖИЗНЬ";
             }
-            float chant = Announcer.I.Chant(last ? 4 : 2, subtitle: next);
+            float chant;
+            if (last) chant = Announcer.I.Chant(4, subtitle: next);
+            else
+            {
+                ui.Banner("ЧИСТО", next, UiKit.Accent, 1.7f);
+                chant = 1.6f;
+            }
             flow = StartCoroutine(After(chant + 0.25f, () =>
             {
                 if (!last) LoadRoom(RoomIndex + 1);
@@ -512,7 +507,6 @@ namespace PulyaDura
                 hull = config.hulls[HullIndex].title, turret = config.turrets[TurretIndex].title, ticks = DateTime.Now.Ticks,
             });
             ui.ShowResult(win, Stats, record, bestTime, bestRooms, place);
-            if (win) Announcer.I.Say("line_victory");
         }
 
         /// <summary>Очки (см. Leaderboard). Если задана точка — над ней всплывает «+N».</summary>

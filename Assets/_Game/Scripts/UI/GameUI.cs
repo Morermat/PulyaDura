@@ -378,7 +378,10 @@ namespace PulyaDura
             ClearTransient();
         }
 
-        /// <summary>Субтитр реплики диктора внизу экрана.</summary>
+        public string SubtitleText => hint.text;
+        public string BannerText => bannerRoot.gameObject.activeSelf ? bannerTitle.text : "";
+
+        /// <summary>Короткий субтитр внизу экрана: подсказка комнаты, причина смерти.</summary>
         public void Subtitle(string text, float seconds)
         {
             hint.text = text;

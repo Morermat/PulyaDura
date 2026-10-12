@@ -7,11 +7,9 @@ using Random = UnityEngine.Random;
 namespace PulyaDura
 {
     /// <summary>
-    /// Голос игры в духе концовки SUPERHOT: в конце комнаты в такт музыке звучит пара слов
-    /// («ПУЛЯ. ДУРА.», «ШТЫК. МОЛОДЕЦ.», «ВСЁ. ТИХО.»), каждое слово во весь экран.
-    /// Вариант выбирается случайно, два раза подряд один и тот же не звучит.
-    /// Сейчас голоса — заглушки из Windows TTS (Resources/Audio/voice_*.wav).
-    /// Свои записи перетащите в поля вариантов (см. README).
+    /// Голос игры звучит один раз — на победе: в такт музыке «ПУЛЯ. ДУРА.», каждое слово во весь экран.
+    /// Голос — Windows TTS, обработанный ниже по тону, с плотным низом и эхом в темп (Resources/Audio/voice_*.wav).
+    /// Свою запись перетащите в поля варианта (см. README).
     /// </summary>
     public class Announcer : MonoBehaviour
     {
@@ -31,21 +29,14 @@ namespace PulyaDura
         public List<Variant> variants = new()
         {
             new Variant { firstText = "ПУЛЯ", secondText = "ДУРА", firstResource = "voice_pulya", secondResource = "voice_dura" },
-            new Variant { firstText = "ШТЫК", secondText = "МОЛОДЕЦ", firstResource = "voice_shtyk", secondResource = "voice_molodets" },
-            new Variant { firstText = "ВСЁ", secondText = "ТИХО", firstResource = "voice_vse", secondResource = "voice_tiho" },
         };
         [Range(0f, 1f)] public float volume = 1f;
 
-        AudioSource source, lineSource;
-        readonly Dictionary<string, AudioClip> lines = new();
+        AudioSource source;
         Coroutine running;
         /// <summary>Доли на слово распева: голос медленный и пафосный, слову нужно время прозвучать.</summary>
         const int BeatsPerWord = 2;
-        /// <summary>Сколько секунд в конце каждого клипа — хвост реверберации зала (не речь).</summary>
-        const float ReverbTail = 2.2f;
 
-        public int LinesSpoken { get; private set; }
-        public string LastLine { get; private set; }
         int lastVariant = -1;
 
         public int WordsSpoken { get; private set; }
@@ -63,40 +54,7 @@ namespace PulyaDura
             source = gameObject.AddComponent<AudioSource>();
             source.playOnAwake = false;
             source.spatialBlend = 0f;
-            source.reverbZoneMix = 0f; // зал уже «вшит» в запись голоса
-            lineSource = gameObject.AddComponent<AudioSource>();
-            lineSource.playOnAwake = false;
-            lineSource.spatialBlend = 0f;
-            lineSource.reverbZoneMix = 0f;
-        }
-
-        /// <summary>
-        /// Реплика диктора (Resources/Audio/line_*.wav) с субтитром внизу экрана.
-        /// Новая реплика обрывает предыдущую; музыка приглушается на время речи.
-        /// Если клипа нет, показывается только субтитр. Возвращает длительность речи (без хвоста зала).
-        /// </summary>
-        public float Say(string clipName, string subtitle = "")
-        {
-            if (!lines.TryGetValue(clipName, out var clip))
-                lines[clipName] = clip = Resources.Load<AudioClip>("Audio/" + clipName);
-            float speech = clip != null ? Mathf.Max(0.6f, clip.length - ReverbTail) : 2.5f;
-            if (clip != null)
-            {
-                lineSource.Stop();
-                lineSource.clip = clip;
-                lineSource.volume = volume;
-                lineSource.Play();
-                MusicDirector.I?.Duck(speech + 0.6f);
-            }
-            if (!string.IsNullOrEmpty(subtitle) && GameManager.I != null) GameManager.I.UI.Subtitle(subtitle, speech + 1.5f);
-            LinesSpoken++;
-            LastLine = clipName;
-            return speech;
-        }
-
-        public void StopLine()
-        {
-            if (lineSource != null) lineSource.Stop();
+            source.reverbZoneMix = 0f; // эхо уже «вшито» в запись голоса
         }
 
         float Beat => MusicDirector.I != null ? MusicDirector.I.BeatLength : 0.6f;

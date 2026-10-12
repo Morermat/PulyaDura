@@ -134,7 +134,7 @@ namespace PulyaDura
             yield return Wait(0.3f);
             Check("Enter в гараже начинает забег", gm.State == GameState.Playing, $"state={gm.State}");
             Check("В первой комнате под танком подсказка клавиш", GameObject.Find("Tutorial") != null);
-            Check("Диктор произносит подсказку первой комнаты", Announcer.I.LastLine == "line_hint_1" && Resources.Load<AudioClip>("Audio/line_hint_1") != null, $"последняя реплика: {Announcer.I.LastLine}");
+            Check("Подсказка комнаты показана субтитром", gm.UI.SubtitleText.Length > 0, $"субтитр: «{gm.UI.SubtitleText}»");
             Shot("02_room1_start");
             yield return Wait(0.6f);
 
@@ -353,16 +353,17 @@ namespace PulyaDura
                 KillEnemies();
                 if (room == 0)
                 {
-                    yield return Wait(1.2f);
-                    Check("Зачистка: распев «ПУЛЯ. ДУРА.» во весь экран", gm.UI.SlamVisible && Announcer.I.WordsSpoken > 0, $"слов {Announcer.I.WordsSpoken}");
+                    yield return Wait(0.6f);
+                    Check("Зачистка: баннер «ЧИСТО», без голоса", gm.UI.BannerText.Contains("ЧИСТО") && Announcer.I.WordsSpoken == 0, $"баннер «{gm.UI.BannerText}», слов {Announcer.I.WordsSpoken}");
                     Shot("07d_chant");
-                    yield return Wait(2.8f);
+                    yield return Wait(2.2f);
                 }
                 else yield return Wait(room == gm.RoomCount - 1 ? 5.5f : 4f); // после последней комнаты распев длиннее
                 if (room < gm.RoomCount - 1)
                     Check($"Комната {before + 1} → {before + 2}", gm.RoomIndex == before + 1 && gm.State == GameState.Playing, $"room={gm.RoomIndex} state={gm.State}");
             }
             Check("После 8-й комнаты экран победы", gm.State == GameState.Result, $"state={gm.State}");
+            Check("Победа: голос «ПУЛЯ. ДУРА.»", Announcer.I.WordsSpoken >= 4, $"слов {Announcer.I.WordsSpoken}");
             var board = Leaderboard.Top;
             Check("Забег попал в таблицу, очки > 0", gm.Stats.score > 0 && board.Count > 0 && (board.Exists(r => r.score == gm.Stats.score) || board.Count == 10),
                 $"очки {gm.Stats.score}, записей {board.Count}");
@@ -851,7 +852,7 @@ namespace PulyaDura
                 && ProjectileSystem.BouncePitch(1, Team.Enemy) < ProjectileSystem.BouncePitch(1, Team.Player));
             int clips = 0;
             foreach (var v in Announcer.I.variants) if (v.first != null && v.second != null) clips++;
-            Check("Голос: 3+ варианта распева со звуком", Announcer.I.VariantCount >= 3 && clips == Announcer.I.VariantCount, $"вариантов {Announcer.I.VariantCount}, с клипами {clips}");
+            Check("Голос победы загружен", Announcer.I.VariantCount >= 1 && clips == Announcer.I.VariantCount, $"вариантов {Announcer.I.VariantCount}, с клипами {clips}");
 
             // Ваншот: мишень (2 брони) падает с одного выстрела, за убийство дают очки
             p.GetComponent<PlayerController>().enabled = false;
