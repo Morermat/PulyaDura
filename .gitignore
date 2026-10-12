@@ -38,3 +38,6 @@ crashlytics-build.properties
 # ОС
 .DS_Store
 Thumbs.db
+
+# Локальные заметки команды (не для публичного репозитория)
+КАК_УСТРОЕНО.md
