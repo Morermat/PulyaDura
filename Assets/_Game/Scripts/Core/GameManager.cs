@@ -98,6 +98,9 @@ namespace PulyaDura
             HullIndex = Mathf.Clamp(PlayerPrefs.GetInt("hull", 1), 0, config.hulls.Count - 1);
             TurretIndex = Mathf.Clamp(PlayerPrefs.GetInt("turret", 0), 0, config.turrets.Count - 1);
             Endless = PlayerPrefs.GetInt("endless", 0) == 1;
+            // Весь экран по умолчанию (выбор запоминается). Автотест работает в окне — ему нужен фиксированный размер
+            if (System.Array.IndexOf(Environment.GetCommandLineArgs(), "-autotest") < 0)
+                ApplyFullscreen(PlayerPrefs.GetInt("fullscreen", 1) == 1);
 
             ui = gameObject.AddComponent<GameUI>();
             ui.Build(this);
@@ -199,6 +202,37 @@ namespace PulyaDura
             Sfx.I.Play(SfxId.Select);
             if (State == GameState.Garage) garage.Show(config.hulls[HullIndex], config.turrets[TurretIndex]);
             ui.RefreshGarage();
+        }
+
+        public bool Fullscreen => Screen.fullScreenMode != FullScreenMode.Windowed;
+
+        /// <summary>Переключить весь экран / окно (F11 или кнопка в гараже). Выбор сохраняется.</summary>
+        public void ToggleFullscreen()
+        {
+            ApplyFullscreen(!Fullscreen);
+            Sfx.I.Play(SfxId.Select);
+        }
+
+        static void ApplyFullscreen(bool on)
+        {
+            PlayerPrefs.SetInt("fullscreen", on ? 1 : 0);
+            if (on)
+            {
+                var r = Screen.currentResolution;
+                Screen.SetResolution(r.width, r.height, FullScreenMode.FullScreenWindow);
+            }
+            else Screen.SetResolution(1600, 900, FullScreenMode.Windowed);
+        }
+
+        /// <summary>Выход из игры (в редакторе — остановка Play).</summary>
+        public void Quit()
+        {
+            PlayerPrefs.Save();
+#if UNITY_EDITOR
+            UnityEditor.EditorApplication.isPlaying = false;
+#else
+            Application.Quit();
+#endif
         }
 
         public void SetEndless(bool on)
@@ -311,6 +345,8 @@ namespace PulyaDura
             bool confirm = (kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)) || (pad != null && pad.startButton.wasPressedThisFrame);
             bool restart = (kb != null && kb.rKey.wasPressedThisFrame) || (pad != null && pad.selectButton.wasPressedThisFrame);
             bool back = kb != null && kb.escapeKey.wasPressedThisFrame;
+
+            if (kb != null && kb.f11Key.wasPressedThisFrame) ToggleFullscreen();
 
             switch (State)
             {

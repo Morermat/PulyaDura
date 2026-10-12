@@ -9,7 +9,7 @@ namespace PulyaDura
         Tank, Armor, Dash, Mirror, Wall, Cannon, Plasma, Shotgun, Rail,
         Sound, Quiet, Clock, Target, Ricochet, Chevron,
         Plus, Bolt, Eye, Trophy,
-        Logo, Play, Restart, Loop, Home, Pause, Infinity, Mouse,
+        Logo, Play, Restart, Loop, Home, Pause, Infinity, Mouse, Fullscreen, Power,
     }
 
     /// <summary>
@@ -173,6 +173,14 @@ namespace PulyaDura
             IconId.Home => p => (Poly(p, new(0f, 0.85f), new(0.85f, 0.05f), new(-0.85f, 0.05f)) && !Poly(p, new(0f, 0.6f), new(0.55f, 0.08f), new(-0.55f, 0.08f)))
                                 || (Box(p, new(0f, -0.4f), new(0.55f, 0.42f)) && !Box(p, new(0f, -0.52f), new(0.16f, 0.3f))),
             IconId.Infinity => p => Ring(p, new(-0.4f, 0f), 0.32f, 0.14f) || Ring(p, new(0.4f, 0f), 0.32f, 0.14f),
+            // Весь экран: четыре уголка
+            IconId.Fullscreen => p => Seg(p, new(-0.75f, 0.75f), new(-0.25f, 0.75f), 0.09f) || Seg(p, new(-0.75f, 0.75f), new(-0.75f, 0.25f), 0.09f)
+                                      || Seg(p, new(0.75f, 0.75f), new(0.25f, 0.75f), 0.09f) || Seg(p, new(0.75f, 0.75f), new(0.75f, 0.25f), 0.09f)
+                                      || Seg(p, new(-0.75f, -0.75f), new(-0.25f, -0.75f), 0.09f) || Seg(p, new(-0.75f, -0.75f), new(-0.75f, -0.25f), 0.09f)
+                                      || Seg(p, new(0.75f, -0.75f), new(0.25f, -0.75f), 0.09f) || Seg(p, new(0.75f, -0.75f), new(0.75f, -0.25f), 0.09f),
+            // Выход: кольцо с разрывом сверху и чёрточка
+            IconId.Power => p => (Ring(p, new(0f, -0.08f), 0.62f, 0.15f) && !InAngle(p - new Vector2(0f, -0.08f), 55f, 125f))
+                                 || Seg(p, new(0f, 0.85f), new(0f, 0.15f), 0.09f),
             IconId.Mouse => p => (Box(p, new(0f, 0f), new(0.45f, 0.75f)) && !Box(p, new(0f, 0f), new(0.32f, 0.62f))) || Seg(p, new(0f, 0.62f), new(0f, 0.2f), 0.06f),
             _ => p => false,
         };

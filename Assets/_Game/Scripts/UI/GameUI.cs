@@ -233,6 +233,11 @@ namespace PulyaDura
             startLabel.rectTransform.offsetMin = new Vector2(50f, 2f);
             UiKit.Icon("Aim", start.transform, C, C, new Vector2(-112f, 0f), 52f, IconId.Target, Color.white);
             UiKit.Text("Enter", start.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-22f, 0f), new Vector2(100f, 26f), "ENTER", 16, new Color(0.7f, 0.95f, 1f, 0.75f), TextAnchor.MiddleRight, Weight.Mono);
+
+            // Под карточкой: весь экран и выход
+            float half = (cardW - 12f) / 2f;
+            UiKit.MenuButton("Fullscreen", garageRoot, TR, TR, new Vector2(-40f - half - 12f, -842f), new Vector2(half, 58f), "Экран · F11", IconId.Fullscreen, () => gm.ToggleFullscreen(), 20);
+            UiKit.MenuButton("Quit", garageRoot, TR, TR, new Vector2(-40f, -842f), new Vector2(half, 58f), "Выйти", IconId.Power, () => gm.Quit(), 20);
         }
 
         /// <summary>Заголовок секции карточки: иконка и подпись.</summary>
@@ -436,7 +441,7 @@ namespace PulyaDura
 
             float age = Time.unscaledTime - hintTime;
             float ha = age < hintLife ? 1f : Mathf.Clamp01(1f - (age - hintLife));
-            hintPanel.gameObject.SetActive(ha > 0f && hint.text.Length > 0);
+            hintPanel.gameObject.SetActive(ha > 0f && hint.text.Length > 0 && !gm.Paused);
             SetAlpha(hint, ha);
 
 
@@ -690,7 +695,7 @@ namespace PulyaDura
         void BuildPause()
         {
             UiKit.Fill(pauseRoot, new Color(0.005f, 0.01f, 0.02f, 0.82f)).raycastTarget = true;
-            var panel = UiKit.Panel("PausePanel", pauseRoot, C, C, new Vector2(0f, -10f), new Vector2(620f, 560f));
+            var panel = UiKit.Panel("PausePanel", pauseRoot, C, C, new Vector2(0f, -10f), new Vector2(620f, 620f));
             UiKit.Glow(panel, UiKit.Accent, 0.55f);
             var tab = UiKit.Panel("Tab", panel.transform, TC, C, Vector2.zero, new Vector2(120f, 70f), new Color(0.03f, 0.08f, 0.12f, 1f), UiKit.Accent);
             UiKit.Glow(tab, UiKit.Accent, 0.5f);
@@ -703,6 +708,7 @@ namespace PulyaDura
                 ("Переиграть комнату", IconId.Restart, () => gm.RestartRoom()),
                 ("Начать заново", IconId.Loop, () => gm.RestartRun()),
                 ("В гараж", IconId.Home, () => gm.EnterGarage()),
+                ("Выйти из игры", IconId.Power, () => gm.Quit()),
             };
             for (int i = 0; i < items.Length; i++)
             {
