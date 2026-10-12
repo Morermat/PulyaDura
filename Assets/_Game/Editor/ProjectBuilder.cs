@@ -30,8 +30,11 @@ namespace PulyaDura.EditorTools
             EnsureLayers();
             var lit = EnsureMaterial("Lit", "Universal Render Pipeline/Lit", m =>
             {
+                // Свечение (_EMISSION) должно быть сохранено в самом материале: иначе при сборке .exe Unity выбросит
+                // вариант шейдера со свечением, и стены (их подсветку включает код) останутся чёрными.
+                // С чисто чёрным цветом URP снимает ключевое слово при сохранении — поэтому почти чёрный, а не ноль.
                 m.EnableKeyword("_EMISSION");
-                m.SetColor("_EmissionColor", Color.black);
+                m.SetColor("_EmissionColor", new Color(0.002f, 0.002f, 0.002f));
                 m.globalIlluminationFlags = MaterialGlobalIlluminationFlags.None;
             });
             var unlit = EnsureMaterial("Unlit", "Universal Render Pipeline/Unlit", m => { });
