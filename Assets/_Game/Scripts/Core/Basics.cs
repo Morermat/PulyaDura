@@ -27,6 +27,8 @@ namespace PulyaDura
         public Vector3 point;
         public Vector3 direction;
         public int bounces;
+        /// <summary>Убит взрывом бочки или её шрапнелью — за это отдельный бонус.</summary>
+        public bool explosion;
     }
 
     public interface IDamageable

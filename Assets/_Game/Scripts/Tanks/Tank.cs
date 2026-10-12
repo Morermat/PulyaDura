@@ -78,8 +78,10 @@ namespace PulyaDura
             go.layer = Layers.Tank;
             go.transform.SetParent(parent, false);
             go.transform.SetPositionAndRotation(position, rotation);
+            if (enemy != null && enemy.scale > 0f && !Mathf.Approximately(enemy.scale, 1f)) go.transform.localScale = Vector3.one * enemy.scale;
             var tank = go.AddComponent<Tank>();
             tank.Setup(team, hull, turret, enemy);
+            if (enemy != null && enemy.boss) go.AddComponent<BossAura>();
             return tank;
         }
 
@@ -132,6 +134,8 @@ namespace PulyaDura
         void OnDisable() => All.Remove(this);
 
         float lastHurt = -10f;
+        Tank lastHurtSource;
+        int volleyDamage;
 
         public void TakeDamage(DamageInfo info)
         {
@@ -148,7 +152,16 @@ namespace PulyaDura
                 }
                 return;
             }
-            if (Team == Team.Player && info.amount < 50 && Time.time - lastHurt < 0.4f) return;
+            if (Team == Team.Player && info.amount < 50)
+            {
+                // Дробины одного залпа приходят почти разом: их засчитываем вместе (но не больше 3 урона),
+                // а новый залп в течение 0.4 с после попадания гасится — два снаряда подряд не убивают мгновенно
+                bool sameVolley = info.source == lastHurtSource && Time.time - lastHurt < 0.12f;
+                if (sameVolley && volleyDamage >= 3) return;
+                if (!sameVolley && Time.time - lastHurt < 0.4f) return;
+                volleyDamage = sameVolley ? volleyDamage + info.amount : info.amount;
+                lastHurtSource = info.source;
+            }
             if (ShieldCharges > 0)
             {
                 ShieldCharges--;

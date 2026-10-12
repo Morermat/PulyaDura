@@ -31,7 +31,10 @@ namespace PulyaDura
         }
 
         /// <summary>Заряд рельсы: у врагов дольше, чтобы игрок успел уйти с красной линии.</summary>
-        float ChargeTime => tank.Team == Team.Enemy ? Mathf.Max(cfg.chargeTime, 1f) : cfg.chargeTime;
+        float ChargeTime => tank.Team == Team.Player ? cfg.chargeTime : Enraged ? 0.7f : Mathf.Max(cfg.chargeTime, 1f);
+
+        /// <summary>Босс в ярости (половина здоровья): заряд короче, два луча веером.</summary>
+        bool Enraged => tank.TryGetComponent<BossAura>(out var aura) && aura.Enraged;
         public bool Ready => cooldown <= 0f && !Charging && burstLeft <= 0;
         public float Reload01 => cfg.reload <= 0f ? 1f : 1f - Mathf.Clamp01(cooldown / cfg.reload);
         public float Charge01 => ChargeTime <= 0f ? 0f : Mathf.Clamp01(charge / ChargeTime);
@@ -152,7 +155,12 @@ namespace PulyaDura
             Vector3 fwd = AimDirection;
             var mods = TakeMods();
             if (tank.Team == Team.Player) mods.ladder = Sfx.I.AdvanceLadder();
-            ProjectileSystem.I.FireRail(tank, cfg, tank.ShotOrigin, fwd, mods);
+            if (Enraged)
+            {
+                ProjectileSystem.I.FireRail(tank, cfg, tank.ShotOrigin, Quaternion.Euler(0f, -9f, 0f) * fwd, mods);
+                ProjectileSystem.I.FireRail(tank, cfg, tank.ShotOrigin, Quaternion.Euler(0f, 9f, 0f) * fwd, mods);
+            }
+            else ProjectileSystem.I.FireRail(tank, cfg, tank.ShotOrigin, fwd, mods);
             AfterShot(fwd, 0.35f, mods.ladder);
         }
 

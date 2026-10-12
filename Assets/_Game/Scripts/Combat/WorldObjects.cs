@@ -6,11 +6,11 @@ namespace PulyaDura
 {
     public enum PickupType { Heal, Shield, OneShot, Mark }
 
-    /// <summary>Белый ящик снабжения: ломается как обычный, из него выпадает бонус.</summary>
+    /// <summary>Зелёный ящик снабжения: ломается как обычный, из него выпадает бонус.</summary>
     public class SupplyBox : Crate
     {
-        static readonly Color White = new(2.2f, 2.4f, 2.8f);
-        protected override Color BreakColor => White;
+        static readonly Color Green = new(0.4f, 2.8f, 0.7f);
+        protected override Color BreakColor => Green;
 
         protected override void OnBroken(DamageInfo info)
         {
@@ -20,7 +20,7 @@ namespace PulyaDura
     }
 
     /// <summary>
-    /// Бонус из белого ящика. Подбирается наездом.
+    /// Бонус из зелёного ящика. Подбирается наездом.
     /// Аптечка +2 брони, Щит гасит следующее попадание, Ваншот — следующий выстрел убивает,
     /// Метка — следующие 3 попадания делают врага видимым на пару секунд.
     /// </summary>
@@ -36,7 +36,7 @@ namespace PulyaDura
         public static Color ColorOf(PickupType t) => t switch
         {
             // Только синий, красный и белый: аптечка белая, щит синий, ваншот красный, метка голубовато-белая
-            PickupType.Heal => new Color(2.4f, 2.6f, 3f),
+            PickupType.Heal => new Color(0.4f, 2.8f, 0.6f),
             PickupType.Shield => new Color(0.4f, 1.4f, 3f),
             PickupType.OneShot => new Color(3f, 0.35f, 0.3f),
             _ => new Color(1.3f, 2f, 3f),
@@ -156,7 +156,7 @@ namespace PulyaDura
                 {
                     float d = Prims.Flat(t.transform.position - pos).magnitude;
                     int dmg = d < cfg.barrelRadius * 0.5f ? cfg.barrelDamage : Mathf.Max(1, cfg.barrelDamage - 1);
-                    t.TakeDamage(new DamageInfo { amount = dmg, source = source, point = t.transform.position, direction = Prims.Flat(t.transform.position - pos).normalized });
+                    t.TakeDamage(new DamageInfo { amount = dmg, source = source, point = t.transform.position, direction = Prims.Flat(t.transform.position - pos).normalized, explosion = true });
                 }
                 else if (col.TryGetComponent<Barrel>(out var other) && other != this) other.Ignite(source, 0.12f);
                 else if (col.TryGetComponent<Crate>(out var crate)) crate.TakeDamage(new DamageInfo { amount = 2, source = source, point = col.transform.position, direction = Vector3.up });

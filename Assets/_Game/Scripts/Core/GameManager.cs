@@ -45,6 +45,8 @@ namespace PulyaDura
         /// <summary>Сколько врагов было в комнате в начале (для счётчика в HUD).</summary>
         public int EnemiesTotal { get; private set; }
         public int EnemiesLeft => EnemiesAlive();
+        /// <summary>Босс текущей комнаты (для полоски здоровья в HUD) или null.</summary>
+        public Tank Boss { get; private set; }
         /// <summary>С какой комнаты можно продолжить после провала (−1 — нельзя).</summary>
         public int ContinueRoom { get; private set; } = -1;
         public const int MaxLives = 5;
@@ -64,6 +66,8 @@ namespace PulyaDura
         readonly List<RoomData> endlessRooms = new();
         int endlessSeed;
         bool recordRun = true;
+        bool hurtThisRoom;
+        bool lifeBonusPending;
 
         void Awake()
         {
@@ -105,12 +109,14 @@ namespace PulyaDura
         void OnEnable()
         {
             GameEvents.TankKilled += OnKilled;
+            GameEvents.TankDamaged += OnDamaged;
             GameEvents.ShotFired += OnShot;
         }
 
         void OnDisable()
         {
             GameEvents.TankKilled -= OnKilled;
+            GameEvents.TankDamaged -= OnDamaged;
             GameEvents.ShotFired -= OnShot;
         }
 
@@ -252,6 +258,7 @@ namespace PulyaDura
         void LoadRoom(int index)
         {
             ResetWorld();
+            hurtThisRoom = false;
             RoomIndex = index;
             streak = 0;
             var room = RoomAt(index);
@@ -267,6 +274,22 @@ namespace PulyaDura
                 Tank.Spawn(Team.Enemy, config.Hull(enemy.hullId), config.Turret(enemy.turretId), enemy, pos, rot, level.Root);
             }
 
+            if (lifeBonusPending)
+            {
+                lifeBonusPending = false;
+                ui.Floating(level.PlayerSpawn + Vector3.up * 1.6f, "+1 ЖИЗНЬ", UiKit.Accent, 48);
+                Sfx.I.Play(SfxId.Pickup, level.PlayerSpawn);
+            }
+            // Босс: имя во весь экран при входе
+            Boss = null;
+            foreach (var t in Tank.All)
+                if (t.Enemy != null && t.Enemy.boss)
+                {
+                    Boss = t;
+                    ui.Banner(t.Enemy.title.ToUpper(), "Босс · красная линия — сейчас выстрел", UiKit.Danger, 2.6f);
+                    CameraRig.I.Shake(0.4f);
+                    break;
+                }
             CameraRig.I.Fit(level.Bounds);
             CameraRig.I.Follow(Player, config.cameraZoom, config.cameraLean);
             EchoSystem.I.RevealAll(level.PlayerSpawn, 1f);
@@ -322,6 +345,11 @@ namespace PulyaDura
 
         // ---------- Счёт ----------
 
+        void OnDamaged(Tank t, DamageInfo d)
+        {
+            if (t.Team == Team.Player) hurtThisRoom = true;
+        }
+
         void OnShot(Tank t)
         {
             if (t.Team == Team.Player) Stats.shots++;
@@ -340,7 +368,9 @@ namespace PulyaDura
             bool byPlayer = d.source != null && d.source.Team == Team.Player;
             bool betrayal = d.source != null && d.source.Team == Team.Enemy && d.source != t;
             KillKind kind = d.source == t ? KillKind.Self
+                : d.explosion && byPlayer ? KillKind.Explosion
                 : !byPlayer ? KillKind.Betrayal
+                : d.bounces >= 3 ? KillKind.TripleRicochet
                 : d.bounces >= 2 ? KillKind.DoubleRicochet
                 : d.bounces == 1 ? KillKind.Ricochet
                 : KillKind.Direct;
@@ -352,7 +382,13 @@ namespace PulyaDura
                 if (d.bounces > 0) Stats.ricochetKills++;
             }
             feedback.OnKill(t, kind, byPlayer ? streak : 0);
-            if (byPlayer) AddScore(100 + 50 * d.bounces + 50 * (streak - 1), t.transform.position);
+            if (byPlayer)
+            {
+                // 100 за убийство, +50 за каждый отскок, +50 за каждое убийство в серии, +150 за взрыв бочки,
+                // +150 за тройной рикошет, +1000 за босса
+                int bonus = (kind == KillKind.Explosion ? 150 : 0) + (kind == KillKind.TripleRicochet ? 150 : 0) + (t.Enemy != null && t.Enemy.boss ? 1000 : 0);
+                AddScore(100 + 50 * Mathf.Min(d.bounces, 4) + 50 * (streak - 1) + bonus, t.transform.position);
+            }
             else if (betrayal) AddScore(75, t.transform.position);
 
             if (EnemiesAlive() == 0 && State == GameState.Playing) RoomCleared();
@@ -374,13 +410,14 @@ namespace PulyaDura
             State = GameState.Dead;
             bool self = d.source != null && d.source == Player;
             // Причина смерти: враги невидимы, поэтому говорим, кто и как попал
-            string cause = self ? "Своя пуля после отскока"
-                : d.source != null && d.source.Enemy != null ? d.source.Enemy.title + (d.bounces > 0 ? " · через отскок" : "")
+            string cause = self ? "Своя же пуля"
+                : d.explosion ? "Взрыв бочки"
+                : d.source != null && d.source.Enemy != null ? d.source.Enemy.title + (d.bounces > 0 ? ", рикошетом" : "")
                 : "Взрыв";
-            ui.Banner(self ? "ПУЛЯ — ДУРА" : "ПОДБИТ", $"{cause} · " + (Lives > 0 ? $"жизней: {Lives}" : "жизни кончились"), UiKit.Danger);
+            ui.Banner(self ? "ПУЛЯ — ДУРА" : "ТЕБЯ ПОДБИЛИ", $"{cause} · " + (Lives > 0 ? $"осталось жизней: {Lives}" : "жизней больше нет"), UiKit.Danger);
             // Убил сам себя — голос медленно и с издёвкой произносит название игры
             if (self) Announcer.I.Chant(2, slam: false, pitch: 0.85f, variant: 0);
-            AddScore(-150, null);
+            AddScore(-500, null);
             Sfx.I.Play(SfxId.Death);
             TimeController.I.SlowMo(0.25f, 0.8f);
             flow = StartCoroutine(After(1.7f, () =>
@@ -399,17 +436,24 @@ namespace PulyaDura
             State = GameState.RoomClear;
             Stats.rooms = Endless ? Stats.rooms + 1 : Mathf.Min(Stats.rooms + 1, RoomCount);
             AddScore(250, null);
+            // Комната без единого попадания по игроку — бонус
+            if (!hurtThisRoom)
+            {
+                AddScore(250, null);
+                if (Player != null) ui.Floating(Player.transform.position + Vector3.up * 1.6f, "БЕЗ ЦАРАПИНЫ +250", UiKit.Accent, 34);
+            }
             if (Player != null) Player.Invulnerable = true;
             TimeController.I.SlowMo(0.3f, 0.9f);
             Sfx.I.Play(SfxId.RoomClear);
             bool last = !Endless && RoomIndex + 1 >= rooms.Count;
             if (Player != null) EchoSystem.I.RevealAll(Player.transform.position, 0.9f);
             // Распев в такт музыке, как в концовке SUPERHOT: после последней комнаты — длиннее
-            string next = last ? "ВСЕ КОМНАТЫ ЧИСТЫ" : $"ДАЛЬШЕ: {RoomAt(RoomIndex + 1).title.ToUpper()}";
+            string next = last ? "ВСЕ КОМНАТЫ ЗАЧИЩЕНЫ" : $"ДАЛЬШЕ: {RoomAt(RoomIndex + 1).title.ToUpper()}";
             // В бесконечном режиме каждые 5 комнат — жизнь в награду
             if (Endless && (RoomIndex + 1) % 5 == 0 && Lives < MaxLives)
             {
                 Lives++;
+                lifeBonusPending = true;
                 next += "  ·  +1 ЖИЗНЬ";
             }
             float chant = Announcer.I.Chant(last ? 6 : 4, subtitle: next);
@@ -445,7 +489,8 @@ namespace PulyaDura
                 record |= !win;
             }
             PlayerPrefs.Save();
-            if (win) AddScore(Mathf.Max(0, Mathf.RoundToInt((300f - Stats.time) * 10f)), null);
+            // Победа: 1000 за каждую оставшуюся жизнь и 15 очков за каждую секунду быстрее 6 минут
+            if (win) AddScore(Lives * 1000 + Mathf.Max(0, Mathf.RoundToInt((360f - Stats.time) * 15f)), null);
             int place = Stats.score <= 0 ? 0 : Leaderboard.Add(new RunRecord
             {
                 score = Stats.score, time = Stats.time, rooms = Stats.rooms, win = win, kills = Stats.kills, endless = Endless,

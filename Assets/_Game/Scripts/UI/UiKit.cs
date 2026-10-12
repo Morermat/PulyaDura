@@ -216,10 +216,11 @@ namespace PulyaDura
             lt.offsetMax = new Vector2(-10f, -2f);
             if (icon.HasValue)
             {
-                float s = Mathf.Min(size.y * 0.46f, 30f);
-                Icon("Icon", img.transform, new Vector2(0.5f, 0.66f), new Vector2(0.5f, 0.5f), Vector2.zero, s, icon.Value, TextColor);
-                lt.anchorMax = new Vector2(1f, 0.42f);
-                lt.offsetMin = new Vector2(6f, 4f);
+                // Иконка в верхней части, подпись в нижней; между ними и от рамки — воздух
+                float s = Mathf.Min(size.y * 0.34f, 30f);
+                Icon("Icon", img.transform, new Vector2(0.5f, 0.68f), new Vector2(0.5f, 0.5f), Vector2.zero, s, icon.Value, TextColor);
+                lt.anchorMax = new Vector2(1f, 0.46f);
+                lt.offsetMin = new Vector2(6f, 10f);
                 lt.offsetMax = new Vector2(-6f, 0f);
             }
             label = Label(lt, text, fontSize, TextColor, TextAnchor.MiddleCenter, weight);

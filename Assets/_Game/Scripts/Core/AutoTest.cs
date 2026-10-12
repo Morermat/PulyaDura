@@ -508,6 +508,7 @@ namespace PulyaDura
         /// <summary>Расставляет витрину танков вдали от уровня и снимает её с двух ракурсов.</summary>
         IEnumerator ModelSheet()
         {
+            GarageStage.SwayEnabled = false;
             var cfg = GameManager.Cfg;
             var ui = GameObject.Find("UI");
             ui.SetActive(false);
@@ -564,6 +565,7 @@ namespace PulyaDura
             yield return null;
             Destroy(root.gameObject);
             ui.SetActive(true);
+            GarageStage.SwayEnabled = true;
             GameManager.I.EnterGarage();
             yield return Wait(0.5f);
         }
@@ -681,6 +683,16 @@ namespace PulyaDura
             p.TakeDamage(new DamageInfo { amount = 2, source = shooter, point = p.transform.position, direction = Vector3.forward });
             Check("Зеркало: урона нет, пока оно горит", p.Hp == playerHp, $"броня {playerHp} → {p.Hp}");
             Check("Зеркало: пуля возвращается в стрелка", shooter == null || shooter.IsDead || shooter.Hp < shooterHp, shooter != null ? $"стрелок {shooterHp} → {shooter.Hp}" : "стрелок уничтожен");
+            // Зеркало отражает и луч рельсы
+            if (shooter != null && !shooter.IsDead)
+            {
+                int beforeRail = shooter.Hp;
+                Vector3 dirRail = Prims.Flat(p.transform.position - shooter.transform.position).normalized;
+                ProjectileSystem.I.FireRail(shooter, cfg.Turret("rail"), shooter.transform.position + dirRail * 1.3f + up, dirRail);
+                yield return null;
+                Check("Зеркало отражает луч рельсы в стрелка", p.Hp == playerHp && (shooter == null || shooter.IsDead || shooter.Hp < beforeRail),
+                    $"игрок {playerHp} → {p.Hp}, стрелок {beforeRail} → {(shooter != null ? shooter.Hp : 0)}");
+            }
             Shot("30_mirror");
             yield return Wait(0.1f);
 
@@ -698,6 +710,17 @@ namespace PulyaDura
             yield return Wait(0.6f);
             Check("Рывок: таран наносит урон", target.IsDead || target.Hp < targetHp, $"цель {targetHp} → {target.Hp}");
             Check("Рывок: после рывка неуязвимость снята", !p.Invulnerable && !p.Dashing);
+
+            // Неуязвимость после попадания: дробины одного залпа засчитываются вместе, чужой выстрел сразу после — нет
+            yield return Wait(0.5f);
+            int hpV = p.Hp;
+            var other = target != null ? target : p;
+            p.TakeDamage(new DamageInfo { amount = 1, source = target, point = p.transform.position, direction = Vector3.forward });
+            p.TakeDamage(new DamageInfo { amount = 1, source = target, point = p.transform.position, direction = Vector3.forward });
+            int afterVolley = p.Hp;
+            p.TakeDamage(new DamageInfo { amount = 1, source = null, point = p.transform.position, direction = Vector3.forward });
+            Check("Залп дробовика бьёт всеми дробинами, другой выстрел сразу после — нет", hpV - afterVolley == 2 && p.Hp == afterVolley,
+                $"броня {hpV} → {afterVolley} → {p.Hp}");
             gm.SelectHull(1);
         }
 

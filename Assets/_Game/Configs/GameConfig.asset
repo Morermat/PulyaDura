@@ -25,7 +25,7 @@ MonoBehaviour:
     height: 0.26
     ability: 0
     abilityTitle: "\u0420\u044B\u0432\u043E\u043A"
-    abilityDescription: "\u0442\u0430\u0440\u0430\u043D, \u0441\u0431\u0438\u0432\u0430\u0435\u0442 \u043F\u0443\u043B\u0438, \u044D\u0445\u043E"
+    abilityDescription: "\u0442\u0430\u0440\u0430\u043D\u0438\u0442 \u0432\u0440\u0430\u0433\u043E\u0432 \u0438 \u0441\u0431\u0438\u0432\u0430\u0435\u0442 \u043F\u0443\u043B\u0438"
     abilityCooldown: 3
     abilityDuration: 0.35
   - id: barsuk
@@ -39,7 +39,7 @@ MonoBehaviour:
     height: 0.32
     ability: 1
     abilityTitle: "\u0417\u0435\u0440\u043A\u0430\u043B\u043E"
-    abilityDescription: "3 \u0441 \u0431\u0435\u0437 \u0443\u0440\u043E\u043D\u0430, \u043F\u0443\u043B\u0438 \u043B\u0435\u0442\u044F\u0442 \u043D\u0430\u0437\u0430\u0434"
+    abilityDescription: "3 \u0441 \u043D\u0435\u0443\u044F\u0437\u0432\u0438\u043C, \u043E\u0442\u0440\u0430\u0436\u0430\u0435\u0442 \u043F\u0443\u043B\u0438"
     abilityCooldown: 6
     abilityDuration: 3
   - id: begemot
@@ -53,7 +53,7 @@ MonoBehaviour:
     height: 0.4
     ability: 2
     abilityTitle: "\u0421\u0442\u0435\u043D\u043A\u0430"
-    abilityDescription: "\u0441\u0442\u0430\u0432\u0438\u0442 \u0441\u0442\u0435\u043D\u0443 \u043D\u0430 6 \u0441"
+    abilityDescription: "\u0441\u0442\u0430\u0432\u0438\u0442 \u0443\u043A\u0440\u044B\u0442\u0438\u0435 \u043D\u0430 6 \u0441"
     abilityCooldown: 8
     abilityDuration: 6
   turrets:
@@ -128,7 +128,7 @@ MonoBehaviour:
     turretSize: 0.66
   - id: rail
     title: "\u0420\u0435\u043B\u044C\u0441\u0430"
-    description: "\u0437\u0430\u0440\u044F\u0434 \xB7 \u043B\u0443\u0447 \u043D\u0430\u0441\u043A\u0432\u043E\u0437\u044C, \u043B\u043E\u043C\u0430\u0435\u0442 \u044F\u0449\u0438\u043A\u0438"
+    description: "\u0437\u0430\u0440\u044F\u0434 \xB7 \u043B\u0443\u0447 \u043F\u0440\u043E\u0448\u0438\u0432\u0430\u0435\u0442 \u043D\u0430\u0441\u043A\u0432\u043E\u0437\u044C"
     style: 3
     mode: 1
     damage: 3
@@ -155,9 +155,11 @@ MonoBehaviour:
     hullId: barsuk
     turretId: cannon
     behaviour: 0
-    accent: {r: 2.2, g: 0.6, b: 0.5, a: 1}
+    accent: {r: 1.3, g: 1.3, b: 1.3, a: 1}
     hpOverride: 2
     damageOverride: 0
+    boss: 0
+    scale: 1
     fireInterval: 1.6
     aimError: 4
     turretTurnSpeed: 150
@@ -176,9 +178,11 @@ MonoBehaviour:
     hullId: strizh
     turretId: cannon
     behaviour: 1
-    accent: {r: 3, g: 0.6, b: 0.35, a: 1}
+    accent: {r: 2.6, g: 2.3, b: 0.3, a: 1}
     hpOverride: 2
     damageOverride: 1
+    boss: 0
+    scale: 1
     fireInterval: 3
     aimError: 9
     turretTurnSpeed: 90
@@ -197,9 +201,11 @@ MonoBehaviour:
     hullId: begemot
     turretId: cannon
     behaviour: 1
-    accent: {r: 3, g: 0.75, b: 0.3, a: 1}
+    accent: {r: 3, g: 1.2, b: 0.15, a: 1}
     hpOverride: 4
     damageOverride: 1
+    boss: 0
+    scale: 1
     fireInterval: 1.8
     aimError: 5
     turretTurnSpeed: 120
@@ -218,9 +224,11 @@ MonoBehaviour:
     hullId: strizh
     turretId: plasma
     behaviour: 2
-    accent: {r: 3, g: 0.35, b: 0.25, a: 1}
+    accent: {r: 3, g: 0.3, b: 0.2, a: 1}
     hpOverride: 0
     damageOverride: 0
+    boss: 0
+    scale: 1
     fireInterval: 0.9
     aimError: 7
     turretTurnSpeed: 200
@@ -239,9 +247,11 @@ MonoBehaviour:
     hullId: barsuk
     turretId: shotgun
     behaviour: 2
-    accent: {r: 3, g: 0.3, b: 0.7, a: 1}
+    accent: {r: 1.6, g: 0.4, b: 3, a: 1}
     hpOverride: 0
     damageOverride: 0
+    boss: 0
+    scale: 1
     fireInterval: 1.6
     aimError: 4
     turretTurnSpeed: 160
@@ -259,10 +269,12 @@ MonoBehaviour:
     title: "\u0421\u043D\u0430\u0439\u043F\u0435\u0440"
     hullId: barsuk
     turretId: cannon
-    behaviour: 1
-    accent: {r: 3, g: 0.25, b: 0.9, a: 1}
+    behaviour: 2
+    accent: {r: 3, g: 0.4, b: 1.8, a: 1}
     hpOverride: 0
     damageOverride: 0
+    boss: 0
+    scale: 1
     fireInterval: 2.4
     aimError: 1.5
     turretTurnSpeed: 110
@@ -270,10 +282,10 @@ MonoBehaviour:
     senseRadius: 3.2
     hearing: 1.7
     memory: 4
-    speedMultiplier: 0.75
+    speedMultiplier: 0.5
     sight: 12
     blindFire: 0
-    preferRange: 6
+    preferRange: 10
     lead: 1
     frontShield: 0
   - symbol: q
@@ -281,9 +293,11 @@ MonoBehaviour:
     hullId: barsuk
     turretId: cannon
     behaviour: 2
-    accent: {r: 2.6, g: 0.5, b: 1.4, a: 1}
+    accent: {r: 0.3, g: 2.6, b: 2.2, a: 1}
     hpOverride: 5
     damageOverride: 0
+    boss: 0
+    scale: 1
     fireInterval: 1.9
     aimError: 4
     turretTurnSpeed: 130
@@ -302,9 +316,11 @@ MonoBehaviour:
     hullId: begemot
     turretId: rail
     behaviour: 2
-    accent: {r: 3, g: 0.2, b: 0.5, a: 1}
+    accent: {r: 3, g: 0.1, b: 0.25, a: 1}
     hpOverride: 14
     damageOverride: 0
+    boss: 1
+    scale: 1.4
     fireInterval: 2.6
     aimError: 2
     turretTurnSpeed: 90

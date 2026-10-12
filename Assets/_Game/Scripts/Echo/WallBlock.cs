@@ -13,6 +13,7 @@ namespace PulyaDura
 
         [Tooltip("Постоянное свечение (временные стены игрока)")] public float baseGlow;
         public Color baseColor = Color.black;
+        [Tooltip("Цвет вспышки от эха вместо цвета волны (зелёный ящик с бонусом)")] public Color revealTint = Color.clear;
 
         public float Reveal { get; private set; }
         /// <summary>Стену уже видели: она оставляет еле заметный контур («память эха»).</summary>
@@ -43,7 +44,7 @@ namespace PulyaDura
             if (amount >= Reveal || amount > 0.6f)
             {
                 Reveal = Mathf.Clamp01(Mathf.Max(amount, Reveal));
-                color = c;
+                color = revealTint.maxColorComponent > 0f ? revealTint : c;
                 dirty = true;
             }
         }
@@ -67,7 +68,7 @@ namespace PulyaDura
             dirty = false;
 
             float k = Reveal * Reveal * 2.2f;
-            Color memory = Seen ? GameManager.Cfg.echoColor * GameManager.Cfg.memoryGlow : Color.black;
+            Color memory = Seen ? (revealTint.maxColorComponent > 0f ? revealTint * 0.12f : GameManager.Cfg.echoColor * GameManager.Cfg.memoryGlow) : Color.black;
             Color e = color * k + memory + baseColor * baseGlow + Color.white * flash * 1.5f;
             mpb.SetColor(Mats.EmissionColor, e);
             rend.SetPropertyBlock(mpb);

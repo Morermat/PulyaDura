@@ -90,6 +90,7 @@ namespace PulyaDura
                 }
             }
 
+            FenceGlow.Ping(origin, radius, color, strength, speed);
             if (!ring) return;
             var wave = wavePool.Count > 0 ? wavePool.Pop() : CreateWave();
             wave.Play(origin, dists, radius, speed, color);

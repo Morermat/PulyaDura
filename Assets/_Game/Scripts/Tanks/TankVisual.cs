@@ -111,6 +111,7 @@ namespace PulyaDura
             TurretPivot.localPosition = new Vector3(0f, HullTop(hull), hull.style == HullStyle.Heavy ? 0.12f : -0.02f); // у тяжёлого башня впереди моторного отсека
             BuildTurret(turret, body);
             if (enemy != null && enemy.frontShield) BuildFrontShield(hull);
+            if (enemy != null && enemy.boss) BuildBossCrown(hull);
 
             BuildHelpers(hull, withLight);
             // Тени от фонаря игрока рендерят каждую деталь 6 раз: мелочь тени не отбрасывает
@@ -218,6 +219,21 @@ namespace PulyaDura
         // ---------- Башня и пушка ----------
 
         /// <summary>Изогнутый щит перед башней из трёх пластин; светится цветом типа врага.</summary>
+        /// <summary>Босс узнаётся по силуэту: корона из шести светящихся шипов на башне и обруч по корпусу.</summary>
+        void BuildBossCrown(HullConfig hull)
+        {
+            for (int i = 0; i < 6; i++)
+            {
+                float a = i * 60f * Mathf.Deg2Rad;
+                Vector3 pos = new(Mathf.Cos(a) * 0.36f, 0.34f, Mathf.Sin(a) * 0.36f);
+                Glow("Crown", PrimitiveType.Cube, TurretPivot, pos, new Vector3(0.07f, 0.26f, 0.07f), accent * 1.6f, Quaternion.Euler(Mathf.Sin(a) * 18f, 0f, -Mathf.Cos(a) * 18f));
+            }
+            float w = hull.size.x, l = hull.size.y;
+            Glow("BossBand", PrimitiveType.Cube, HullRoot, new Vector3(0f, HullTop(hull) - 0.04f, -l * 0.5f - 0.01f), new Vector3(w * 0.9f, 0.05f, 0.02f), accent * 1.4f);
+            Glow("BossBandL", PrimitiveType.Cube, HullRoot, new Vector3(-w * 0.5f - 0.01f, HullTop(hull) - 0.04f, 0f), new Vector3(0.02f, 0.05f, l * 0.9f), accent * 1.4f);
+            Glow("BossBandR", PrimitiveType.Cube, HullRoot, new Vector3(w * 0.5f + 0.01f, HullTop(hull) - 0.04f, 0f), new Vector3(0.02f, 0.05f, l * 0.9f), accent * 1.4f);
+        }
+
         void BuildFrontShield(HullConfig hull)
         {
             float r = Mathf.Max(hull.size.x, hull.size.y) * 0.62f;

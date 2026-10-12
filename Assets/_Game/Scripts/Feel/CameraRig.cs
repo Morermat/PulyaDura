@@ -76,11 +76,11 @@ namespace PulyaDura
             return focus - fwd * (fullDistance * zoom);
         }
 
-        public void LookAt(Vector3 target, float distance, float angle)
+        public void LookAt(Vector3 target, float distance, float angle, float yaw = 0f)
         {
             fitMode = false;
             follow = null;
-            baseRot = Quaternion.Euler(angle, 0f, 0f);
+            baseRot = Quaternion.Euler(angle, yaw, 0f);
             basePos = target - baseRot * Vector3.forward * distance;
             transform.SetPositionAndRotation(basePos, baseRot);
         }
@@ -121,7 +121,7 @@ namespace PulyaDura
                 foreach (var c in corners)
                 {
                     Vector3 v = cam.WorldToViewportPoint(c);
-                    if (v.z <= 0f || v.x < 0.02f || v.x > 0.98f || v.y < 0.19f || v.y > 0.9f) { fits = false; break; }
+                    if (v.z <= 0f || v.x < 0.02f || v.x > 0.98f || v.y < 0.1f || v.y > 0.9f) { fits = false; break; }
                 }
                 if (fits) hi = mid; else lo = mid;
             }

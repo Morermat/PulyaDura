@@ -204,7 +204,8 @@ namespace PulyaDura
             return new RoomData
             {
                 title = $"Глубина {depth}",
-                hint = depth % 6 == 0 ? "Босс! Рельса прошивает танки" : PickTip(rows, rng),
+                // В бесконечном режиме подсказки не мешают: только предупреждение о боссе
+                hint = depth % 6 == 0 ? "Босс: красная линия — сейчас выстрел" : "",
                 rows = rows,
                 width = w,
                 height = h,

@@ -247,12 +247,14 @@ namespace PulyaDura
             Prims.Part("Base", PrimitiveType.Cube, go.transform, new Vector3(0f, 0.06f, 0f), new Vector3(c, 0.12f, 0.34f), dark);
             for (int i = -1; i <= 1; i++)
                 Prims.Part("Post", PrimitiveType.Cube, go.transform, new Vector3(i * (c * 0.5f - 0.06f), 0.5f, 0f), new Vector3(0.1f, 0.9f, 0.1f), dark);
-            var glow = Mats.Unlit(new Color(0.9f, 1f, 1.15f) * 0.55f);
+            var bars = new List<MeshRenderer>();
             foreach (float y in new[] { 0.42f, 0.86f })
             {
-                var bar = Prims.Part("Bar", PrimitiveType.Cube, go.transform, new Vector3(0f, y, 0f), new Vector3(c, 0.04f, 0.04f), glow);
+                var bar = Prims.Part("Bar", PrimitiveType.Cube, go.transform, new Vector3(0f, y, 0f), new Vector3(c, 0.04f, 0.04f), cfg.unlitMaterial);
                 bar.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
+                bars.Add(bar);
             }
+            go.AddComponent<FenceGlow>().Init(bars);
         }
 
         /// <param name="corners">Скругления углов из WallShapes.Corners; null — обычный куб</param>
@@ -287,7 +289,7 @@ namespace PulyaDura
             {
                 if (supplyMaterial != null) return supplyMaterial;
                 supplyMaterial = new Material(Mats.Crate) { name = "Supply" };
-                supplyMaterial.SetColor(Mats.BaseColor, new Color(0.32f, 0.36f, 0.44f));
+                supplyMaterial.SetColor(Mats.BaseColor, new Color(0.1f, 0.3f, 0.14f));
                 return supplyMaterial;
             }
         }
@@ -302,9 +304,8 @@ namespace PulyaDura
             var wall = r.gameObject.AddComponent<WallBlock>();
             if (supply)
             {
-                // Белый ящик чуть светится в темноте: его можно найти без эха
-                wall.baseColor = new Color(2.2f, 2.4f, 2.8f);
-                wall.baseGlow = 0.22f;
+                // Зелёный ящик в темноте не виден, как и всё остальное, но эхо высвечивает его ярко-зелёным
+                wall.revealTint = new Color(0.4f, 2.8f, 0.7f);
                 r.gameObject.AddComponent<SupplyBox>();
             }
             else r.gameObject.AddComponent<Crate>();

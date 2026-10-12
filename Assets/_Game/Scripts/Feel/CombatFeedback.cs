@@ -2,7 +2,7 @@ using UnityEngine;
 
 namespace PulyaDura
 {
-    public enum KillKind { Self, Betrayal, Direct, Ricochet, DoubleRicochet }
+    public enum KillKind { Self, Betrayal, Direct, Ricochet, DoubleRicochet, TripleRicochet, Explosion }
 
     /// <summary>
     /// «Сок» боя: взрывы, тряска, hit-stop, всплывающие надписи. Только реакция, без правил игры:
@@ -56,19 +56,21 @@ namespace PulyaDura
             string label = kind switch
             {
                 KillKind.Self => "САМ СЕБЯ!",
-                KillKind.Betrayal => "ПРЕДАТЕЛЬ!",
-                _ when streak == 2 => "ДУПЛЕТ!",
-                _ when streak == 3 => "ТРИПЛЕТ!",
-                _ when streak > 3 => $"СЕРИЯ x{streak}!",
+                KillKind.Betrayal => "СВОЙ СВОЕГО!",
+                KillKind.Explosion => "БАБАХ!",
+                _ when streak == 2 => "ДВОЙНОЕ!",
+                _ when streak == 3 => "ТРОЙНОЕ!",
+                _ when streak > 3 => $"СЕРИЯ ×{streak}!",
+                KillKind.TripleRicochet => "ТРОЙНОЙ РИКОШЕТ!",
                 KillKind.DoubleRicochet => "ДВОЙНОЙ РИКОШЕТ!",
                 KillKind.Ricochet => "РИКОШЕТ!",
-                _ => "ПОПАЛ!",
+                _ => "ЕСТЬ!",
             };
             Color color = kind is KillKind.Self or KillKind.Betrayal ? UiKit.Enemy
-                : kind is KillKind.Ricochet or KillKind.DoubleRicochet || streak > 1 ? UiKit.Danger : UiKit.Accent;
+                : kind is KillKind.Ricochet or KillKind.DoubleRicochet or KillKind.TripleRicochet or KillKind.Explosion || streak > 1 ? UiKit.Danger : UiKit.Accent;
             ui.Floating(pos + Vector3.up * 1.5f, label, color, 46);
 
-            if (kind == KillKind.DoubleRicochet)
+            if (kind is KillKind.DoubleRicochet or KillKind.TripleRicochet or KillKind.Explosion || (t.Enemy != null && t.Enemy.boss))
             {
                 // Награда за главный навык: замедление и наезд камеры на попадание
                 TimeController.I.SlowMo(0.2f, 0.7f);

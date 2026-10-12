@@ -241,6 +241,8 @@ namespace PulyaDura
                 {
                     if (t.IsDead || t.Invulnerable) continue;
                     if (t == p.owner && p.bouncesDone == 0) continue;
+                    // Пули врагов не задевают ни стрелка, ни других врагов: боты не убивают сами себя
+                    if (p.team == Team.Enemy && t.Team == Team.Enemy) continue;
                 }
                 else if (overlapAtStart) continue;
                 if (h.distance < bestDist) { bestDist = h.distance; best = k; }
@@ -276,7 +278,7 @@ namespace PulyaDura
                 GameManager.I.UI.Floating(p.pos + Vector3.up, "ЩИТ", UiKit.Accent, 34);
                 return;
             }
-            tank.TakeDamage(new DamageInfo { amount = p.power ? 99 : DamageOf(p.owner, p.cfg), source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone });
+            tank.TakeDamage(new DamageInfo { amount = p.power ? 99 : DamageOf(p.owner, p.cfg), source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone, explosion = p.cfg == cfg.shrapnel });
             if (p.mark && !tank.IsDead) tank.Visual.Mark(cfg.markDuration);
             if ((p.power || p.mark) && p.owner != null && p.owner != tank) p.owner.Weapon.ConsumeMods(p.power, p.mark);
             EchoSystem.I.Emit(p.pos, EchoRadius(p) * 0.6f, EchoColor(p), 0.8f);
@@ -407,8 +409,12 @@ namespace PulyaDura
         }
 
         /// <summary>Рельса: мгновенный луч по той же траектории, что у пуль. Пробивает танки.</summary>
-        public void FireRail(Tank owner, TurretConfig turret, Vector3 origin, Vector3 dir, ShotMods mods = default)
+        public void FireRail(Tank owner, TurretConfig turret, Vector3 origin, Vector3 dir, ShotMods mods = default) => FireRail(owner, turret, origin, dir, mods, 0);
+
+        /// <param name="depth">Сколько раз луч уже отразился от зеркала (чтобы два зеркала не зациклили его)</param>
+        void FireRail(Tank owner, TurretConfig turret, Vector3 origin, Vector3 dir, ShotMods mods, int depth)
         {
+            Tank mirrored = null;
             // Ящики и бочки на пути луча разлетаются с одного выстрела, и луч идёт дальше сквозь них
             for (int pass = 0; pass < 6; pass++)
             {
@@ -419,7 +425,7 @@ namespace PulyaDura
             Color echo = owner.Team == Team.Player ? cfg.echoColor : cfg.enemyEchoColor;
             bool consumed = false;
 
-            for (int s = 0; s < railPath.Count - 1; s++)
+            for (int s = 0; s < railPath.Count - 1 && mirrored == null; s++)
             {
                 Vector3 a = railPath[s], b = railPath[s + 1];
                 Vector3 d = b - a;
@@ -431,6 +437,16 @@ namespace PulyaDura
                     if (!hits[k].collider.TryGetComponent<Tank>(out var t) || t.IsDead || t.Invulnerable) continue;
                     if (t == owner && s == 0) continue;
                     if (!railHit.Add(t)) continue;
+                    if (t.MirrorActive && t != owner && depth < 2)
+                    {
+                        // Зеркало отражает и луч рельсы: он уходит обратно в стрелка
+                        mirrored = t;
+                        Sfx.I.Play(SfxId.Mirror, t.transform.position, 1f, 1.2f);
+                        if (t.Team == Team.Player) GameManager.I.UI.Floating(t.transform.position + Vector3.up * 1.2f, "ОТРАЖЕНО", UiKit.Accent, 30);
+                        railPath.RemoveRange(s + 1, railPath.Count - s - 1);
+                        railPath.Add(new Vector3(t.transform.position.x, Ricochet.ShotHeight, t.transform.position.z));
+                        break;
+                    }
                     if (t.ShieldFacing(d / len))
                     {
                         Sfx.I.Play(SfxId.Clang, t.transform.position, 1f, 0.8f);
@@ -459,6 +475,12 @@ namespace PulyaDura
             var beam = beamPool.Count > 0 ? beamPool.Pop() : CreateBeam();
             beam.Play(railPath, owner.Team == Team.Player ? cfg.bulletPlayer : cfg.bulletEnemy);
             GameEvents.RaiseNoise(railPath[railPath.Count - 1], turret.noiseRadius * 0.6f, owner.Team);
+            if (mirrored != null)
+            {
+                Vector3 from = new(mirrored.transform.position.x, Ricochet.ShotHeight, mirrored.transform.position.z);
+                Vector3 back = owner != null && !owner.IsDead ? Prims.Flat(owner.transform.position - mirrored.transform.position).normalized : -dir;
+                FireRail(mirrored, turret, from + back * (MirrorRadius + 0.1f), back, default, depth + 1);
+            }
         }
 
         /// <summary>Первый ящик или бочка, в которые упирается луч, ломается целиком. true — путь надо пересчитать.</summary>
