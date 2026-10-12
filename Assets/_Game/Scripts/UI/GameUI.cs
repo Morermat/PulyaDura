@@ -24,15 +24,22 @@ namespace PulyaDura
         Image statArmor, statSpeed, statDamage, statRate, statBounces;
 
         // HUD
-        Text roomNumber, roomTitle, hint, timer, weaponLabel, noiseLabel, abilityKey;
-        Image hintPanel, weaponIcon, noiseIcon, weaponBar, abilityIcon, abilityFill, abilityTile, damageFlash;
-        Image abilityGlow;
+        Text roomNumber, roomTitle, subtitle, timer, abilityKey;
+        Image subtitleRoot, weaponIcon, noiseIcon, weaponBar, abilityIcon, abilityFill, abilityTile, damageFlash;
+        Image abilityGlow, abilityFrame;
         Text abilitySeconds;
+
+        // Последние показанные значения HUD: строки пересобираются только когда число изменилось,
+        // а не каждый кадр — меньше мусора в памяти и пересборок текста
+        int shownTenths = -1, shownScore = -1, shownLeft = -1, shownTotal = -1, shownAbilityKey = int.MinValue, shownSecondsKey = int.MinValue;
+        readonly int[] shownBuffs = { -1, -1, -1 };
+        Tank shownBoss;
+        bool shownRage;
         readonly List<Image> lifeIcons = new();
         readonly List<Image> hpSegments = new();
         RectTransform hpRow;
         int hpSegmentsFor = -1;
-        float hintTime, hintLife = 6f;
+        float subtitleTime, subtitleLife = 6f;
         Tank cachedPlayer;
         PlayerController playerController;
 
@@ -48,8 +55,8 @@ namespace PulyaDura
         Text bannerTitle, bannerSub;
         Image bannerLineL, bannerLineR;
         float bannerTime, bannerLife;
-        Text resultTitle, resultTime, resultKills, resultRicochets, resultExtra, resultRecord;
-        Text scoreText, garageBoard, resultBoard, enemyCounter, resultKeys, bossName;
+        Text resultTitle, resultTime, resultKills, resultRicochets, resultRecord;
+        Text scoreText, garageBoard, resultBoard, enemyCounter, bossName;
         Image bossPanel, bossBar;
         int shownLives;
         float lifePopTime = -10f;
@@ -62,7 +69,6 @@ namespace PulyaDura
         Text slamWord, slamSub;
         Image slamFlash, slamDim;
         float slamTime;
-        public bool SlamVisible => slamRoot.gameObject.activeSelf;
 
         class Floater { public Text text; public Vector3 world; public float t; }
         class EdgeMark { public Image img; public Tank target; public Color color; public float t; }
@@ -309,9 +315,9 @@ namespace PulyaDura
             enemyCounter = UiKit.Text("Enemies", hudRoot, TL, TL, new Vector2(48f, -106f), new Vector2(400f, 30f), "", 22, UiKit.Enemy, TextAnchor.UpperLeft, Weight.Mono);
 
             // Субтитры диктора: внизу по центру, без плашки, гаснут сами
-            hintPanel = UiKit.Box("Subtitle", hudRoot, BC, BC, new Vector2(0f, 200f), new Vector2(1000f, 44f), new Color(0f, 0f, 0f, 0f));
-            hint = UiKit.Text("Hint", hintPanel.transform, C, C, Vector2.zero, new Vector2(1000f, 44f), "", 24, UiKit.TextColor, TextAnchor.MiddleCenter, Weight.Bold);
-            UiKit.Shadow(hint, 2f, 0.9f);
+            subtitleRoot = UiKit.Box("Subtitle", hudRoot, BC, BC, new Vector2(0f, 200f), new Vector2(1000f, 44f), new Color(0f, 0f, 0f, 0f));
+            subtitle = UiKit.Text("Hint", subtitleRoot.transform, C, C, Vector2.zero, new Vector2(1000f, 44f), "", 24, UiKit.TextColor, TextAnchor.MiddleCenter, Weight.Bold);
+            UiKit.Shadow(subtitle, 2f, 0.9f);
 
             UiKit.Icon("Clock", hudRoot, TR, TR, new Vector2(-218f, -36f), 30f, IconId.Clock, UiKit.Muted);
             timer = UiKit.Text("Timer", hudRoot, TR, TR, new Vector2(-48f, -30f), new Vector2(170f, 44f), "", 34, UiKit.TextColor, TextAnchor.UpperRight, Weight.Mono);
@@ -336,20 +342,17 @@ namespace PulyaDura
             for (int i = 0; i < GameManager.MaxLives; i++)
                 lifeIcons.Add(UiKit.Icon("Life", dash, TL, TL, new Vector2(18f + i * 40f, -12f), 38f, IconId.Tank, UiKit.Danger));
             noiseIcon = UiKit.Icon("Noise", dash, TR, TR, new Vector2(-132f, -18f), 26f, IconId.Quiet, UiKit.Muted);
-            noiseLabel = UiKit.Text("NoiseLabel", dash, TR, TR, new Vector2(-20f, -18f), new Vector2(110f, 26f), "", 20, UiKit.Muted, TextAnchor.MiddleRight, Weight.Mono);
-            noiseLabel.gameObject.SetActive(false); // шум показывает цвет иконки
 
             UiKit.Icon("Armor", dash, TL, ML, new Vector2(20f, -72f), 26f, IconId.Armor, UiKit.Accent);
             hpRow = UiKit.Rect("Hp", dash, TL, ML, new Vector2(60f, -72f), new Vector2(350f, 14f));
 
             weaponIcon = UiKit.Icon("Weapon", dash, TL, ML, new Vector2(20f, -112f), 26f, IconId.Cannon, UiKit.TextColor);
-            weaponLabel = UiKit.Text("WeaponLabel", dash, TL, ML, new Vector2(60f, -106f), new Vector2(300f, 24f), "", 20, UiKit.Muted, TextAnchor.MiddleLeft, Weight.Mono);
-            weaponLabel.gameObject.SetActive(false); // пушку показывает иконка, перезарядку — полоска
             weaponBar = UiKit.Bar("Reload", dash, TL, ML, new Vector2(60f, -122f), new Vector2(350f, 4f), UiKit.TextColor);
 
             // Плитка скилла с круговой перезарядкой
             abilityTile = UiKit.Panel("Ability", hudRoot, BL, BL, new Vector2(486f, 40f), new Vector2(140f, 140f));
             abilityGlow = UiKit.Glow(abilityTile, UiKit.Accent, 0.7f);
+            abilityFrame = UiKit.FrameOf(abilityTile);
             // Перезарядка затемняет плитку: пустая и светлая — значит готово
             abilityFill = UiKit.Fill(UiKit.Stretch("Cooldown", abilityTile.transform), new Color(0f, 0f, 0f, 0.65f));
             abilityFill.sprite = Icons.Panel;
@@ -383,15 +386,15 @@ namespace PulyaDura
             ClearTransient();
         }
 
-        public string SubtitleText => hint.text;
+        public string SubtitleText => subtitle.text;
         public string BannerText => bannerRoot.gameObject.activeSelf ? bannerTitle.text : "";
 
         /// <summary>Короткий субтитр внизу экрана: подсказка комнаты, причина смерти.</summary>
         public void Subtitle(string text, float seconds)
         {
-            hint.text = text;
-            hintTime = Time.unscaledTime;
-            hintLife = seconds;
+            subtitle.text = text;
+            subtitleTime = Time.unscaledTime;
+            subtitleLife = seconds;
         }
 
         public void ShowRoom(int index, int count, string title, string roomHint)
@@ -399,7 +402,7 @@ namespace PulyaDura
             roomNumber.text = count > 0 ? $"{index + 1:00} / {count:00}" : "БЕСКОНЕЧНЫЙ РЕЖИМ";
             roomTitle.text = title;
             // Подсказку теперь произносит диктор (Announcer.Say → Subtitle); здесь только сброс
-            hint.text = "";
+            subtitle.text = "";
             // Обучение у танка — только в первой сюжетной комнате (не в бесконечном режиме)
             tutorialStep = index == 0 && count > 0 && tutorialProgress < 3 ? tutorialProgress : -1;
             tutorialStepTime = Time.unscaledTime;
@@ -408,15 +411,26 @@ namespace PulyaDura
 
         void UpdateHud()
         {
-            timer.text = FormatTime(gm.Stats.time);
-            scoreText.text = gm.Stats.score.ToString();
+            int tenths = Mathf.FloorToInt(gm.Stats.time * 10f);
+            if (tenths != shownTenths)
+            {
+                shownTenths = tenths;
+                timer.text = FormatTime(gm.Stats.time);
+            }
+            if (gm.Stats.score != shownScore)
+            {
+                shownScore = gm.Stats.score;
+                scoreText.text = shownScore.ToString();
+            }
             var pl = gm.Player;
-            int[] buffValues = pl != null && !pl.IsDead ? new[] { pl.ShieldCharges, pl.Weapon.PowerShots, pl.Weapon.MarkShots } : new[] { 0, 0, 0 };
+            bool alive = pl != null && !pl.IsDead;
             for (int i = 0; i < buffSlots.Count; i++)
             {
-                var slotGo = buffSlots[i].icon.transform.parent.gameObject;
-                if (slotGo.activeSelf != buffValues[i] > 0) slotGo.SetActive(buffValues[i] > 0);
-                buffSlots[i].count.text = "×" + buffValues[i];
+                int value = !alive ? 0 : i == 0 ? pl.ShieldCharges : i == 1 ? pl.Weapon.PowerShots : pl.Weapon.MarkShots;
+                if (value == shownBuffs[i]) continue;
+                shownBuffs[i] = value;
+                buffSlots[i].icon.transform.parent.gameObject.SetActive(value > 0);
+                buffSlots[i].count.text = "×" + value;
             }
             // Жизни белые, последняя — красная. Пустые слоты показываем только до стартового числа
             int slots = Mathf.Max(gm.Lives, cfg.lives);
@@ -434,15 +448,27 @@ namespace PulyaDura
             if (bossPanel.gameObject.activeSelf != bossAlive) bossPanel.gameObject.SetActive(bossAlive);
             if (bossAlive)
             {
-                bossName.text = boss.Enemy.title + (boss.TryGetComponent<BossAura>(out var aura) && aura.Enraged ? " · ЯРОСТЬ" : "");
+                bool rage = boss.TryGetComponent<BossAura>(out var aura) && aura.Enraged;
+                if (boss != shownBoss || rage != shownRage)
+                {
+                    shownBoss = boss;
+                    shownRage = rage;
+                    bossName.text = boss.Enemy.title + (rage ? " · ЯРОСТЬ" : "");
+                }
                 bossBar.fillAmount = (float)boss.Hp / boss.MaxHp;
             }
-            enemyCounter.text = gm.EnemiesTotal > 0 ? $"<size=16>●</size> {gm.EnemiesLeft}/{gm.EnemiesTotal}" : "";
+            int enemiesLeft = gm.EnemiesLeft;
+            if (enemiesLeft != shownLeft || gm.EnemiesTotal != shownTotal)
+            {
+                shownLeft = enemiesLeft;
+                shownTotal = gm.EnemiesTotal;
+                enemyCounter.text = shownTotal > 0 ? $"<size=16>●</size> {shownLeft}/{shownTotal}" : "";
+            }
 
-            float age = Time.unscaledTime - hintTime;
-            float ha = age < hintLife ? 1f : Mathf.Clamp01(1f - (age - hintLife));
-            hintPanel.gameObject.SetActive(ha > 0f && hint.text.Length > 0 && !gm.Paused);
-            SetAlpha(hint, ha);
+            float age = Time.unscaledTime - subtitleTime;
+            float ha = age < subtitleLife ? 1f : Mathf.Clamp01(1f - (age - subtitleLife));
+            subtitleRoot.gameObject.SetActive(ha > 0f && subtitle.text.Length > 0 && !gm.Paused);
+            SetAlpha(subtitle, ha);
 
 
             var p = gm.Player;
@@ -453,7 +479,6 @@ namespace PulyaDura
                     hpSegments[i].color = i < p.Hp ? (p.Hp <= 1 ? UiKit.Danger : UiKit.Accent) : UiKit.Faint;
 
                 weaponIcon.sprite = Icons.Get(IconOf(p.Turret.style));
-                weaponLabel.text = p.Weapon.Charging ? $"{p.Turret.title.ToUpper()} · ЗАРЯД" : p.Turret.title.ToUpper();
                 weaponBar.fillAmount = p.Weapon.Charging ? p.Weapon.Charge01 : p.Weapon.Reload01;
                 weaponBar.color = p.Weapon.Ready ? UiKit.TextColor : UiKit.Muted;
 
@@ -463,16 +488,26 @@ namespace PulyaDura
                 abilityIcon.color = ready ? Color.white : new Color(1f, 1f, 1f, 0.15f);
                 // Перезарядка — крупные секунды поверх иконки; готовность — свечение, которое вспыхивает в момент готовности
                 float left = (1f - p.Ability.Cooldown01) * p.Hull.abilityCooldown;
-                abilitySeconds.text = ready || p.Ability.ChargesLeft == 0 ? "" : left.ToString(left < 1f ? "0.0" : "0");
+                // Ключ показанного значения: целые секунды или десятые на последней секунде
+                int secondsKey = ready || p.Ability.ChargesLeft == 0 ? -1 : left < 1f ? 1000 + Mathf.FloorToInt(left * 10f) : Mathf.RoundToInt(left);
+                if (secondsKey != shownSecondsKey)
+                {
+                    shownSecondsKey = secondsKey;
+                    abilitySeconds.text = secondsKey < 0 ? "" : secondsKey >= 1000 ? "0." + (secondsKey - 1000) : secondsKey.ToString();
+                }
                 float flash = Mathf.Clamp01(1f - (Time.time - p.Ability.ReadySince) / 0.6f);
                 abilityGlow.gameObject.SetActive(ready);
                 abilityGlow.color = new Color(UiKit.Accent.r, UiKit.Accent.g, UiKit.Accent.b, 0.45f + 0.5f * flash);
                 abilityTile.rectTransform.localScale = Vector3.one * (1f + 0.08f * flash);
                 int charges = p.Ability.ChargesLeft;
-                abilityKey.text = charges < 0 ? p.Hull.abilityTitle.ToUpper() : $"{p.Hull.abilityTitle.ToUpper()} ×{charges}";
+                int abilityKeyValue = charges * 2 + (ready ? 1 : 0);
+                if (abilityKeyValue != shownAbilityKey)
+                {
+                    shownAbilityKey = abilityKeyValue;
+                    abilityKey.text = charges < 0 ? p.Hull.abilityTitle : $"{p.Hull.abilityTitle} ×{charges}";
+                }
                 abilityKey.color = ready ? UiKit.Accent : UiKit.Muted;
-                UiKit.FrameOf(abilityTile).color = ready ? UiKit.Accent : UiKit.Line;
-                abilityKey.color = ready ? UiKit.Accent : UiKit.Muted;
+                abilityFrame.color = ready ? UiKit.Accent : UiKit.Line;
                 float pulse = ready ? 1f + Mathf.Sin(Time.unscaledTime * 4f) * 0.03f : 1f;
                 abilityIcon.rectTransform.localScale = Vector3.one * pulse;
 
@@ -481,8 +516,6 @@ namespace PulyaDura
                 bool sneak = playerController != null && playerController.IsSneaking;
                 noiseIcon.sprite = Icons.Get(loud ? IconId.Sound : IconId.Quiet);
                 noiseIcon.color = loud ? UiKit.Danger : sneak ? UiKit.Accent : UiKit.Muted;
-                noiseLabel.text = loud ? "ШУМНО" : sneak ? "КРАДУСЬ" : "ТИХО";
-                noiseLabel.color = noiseIcon.color;
 
                 UpdateTutorial(p);
             }
@@ -736,14 +769,12 @@ namespace PulyaDura
             UiKit.Text("Head", board.transform, TL, TL, new Vector2(22f, -20f), new Vector2(380f, 26f), "ТАБЛИЦА ЗАБЕГОВ", 19, UiKit.Muted, TextAnchor.UpperLeft, Weight.Mono);
             UiKit.Text("Columns", board.transform, TL, TL, new Vector2(22f, -48f), new Vector2(390f, 22f), " #    ОЧКИ     ВРЕМЯ  ИТОГ", 18, UiKit.Muted, TextAnchor.UpperLeft, Weight.Mono);
             resultBoard = UiKit.Text("Rows", board.transform, TL, TL, new Vector2(22f, -70f), new Vector2(390f, 256f), "", 18, UiKit.TextColor, TextAnchor.UpperLeft, Weight.Mono);
-            resultExtra = UiKit.Text("Extra", resultRoot, C, C, new Vector2(0f, -2f), new Vector2(1000f, 36f), "", 21, UiKit.Muted, TextAnchor.MiddleCenter, Weight.Mono);
             resultRecord = UiKit.Text("Record", resultRoot, C, C, new Vector2(0f, -46f), new Vector2(1000f, 46f), "", 30, UiKit.Danger, TextAnchor.MiddleCenter, Weight.Bold);
 
             var again = UiKit.MenuButton("Again", resultRoot, C, C, new Vector2(-230f, -150f), new Vector2(440f, 84f), "Ещё раз", IconId.Loop, () => gm.RestartRun(), 34);
             UiKit.SetSelected(again, true);
             UiKit.MenuButton("Garage", resultRoot, C, C, new Vector2(230f, -150f), new Vector2(440f, 84f), "В гараж", IconId.Home, () => gm.EnterGarage(), 34);
             continueButton = UiKit.MenuButton("Continue", resultRoot, C, C, new Vector2(0f, -240f), new Vector2(900f, 66f), "Продолжить с комнаты", IconId.Play, () => gm.ContinueRun(), 24);
-            resultKeys = UiKit.Text("Keys", resultRoot, C, C, new Vector2(0f, -300f), new Vector2(1000f, 30f), "", 19, UiKit.Muted, TextAnchor.MiddleCenter, Weight.Mono);
             resultRoot.gameObject.SetActive(false);
         }
 
@@ -769,14 +800,10 @@ namespace PulyaDura
             bool canContinue = gm.ContinueRoom >= 0;
             continueButton.gameObject.SetActive(canContinue);
             // Подсказка клавиш — сразу под последней кнопкой
-            resultKeys.rectTransform.anchoredPosition = new Vector2(0f, canContinue ? -296f : -222f);
             if (canContinue) continueButton.GetComponentInChildren<Text>().text = $"Продолжить с комнаты {gm.ContinueRoom + 1} (вне зачёта)";
-            resultKeys.text = "";
-            resultExtra.text = "";
             resultTime.text = FormatTime(s.time);
             resultKills.text = s.score.ToString();
             resultRicochets.text = s.ricochetKills.ToString();
-            resultExtra.text = "";
             resultBoard.text = BoardText(10, place);
             // Лучшее достижение: время полного прохождения важнее числа комнат
             resultRecord.text = record ? "НОВЫЙ РЕКОРД!"

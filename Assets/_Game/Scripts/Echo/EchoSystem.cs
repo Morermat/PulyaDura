@@ -46,6 +46,9 @@ namespace PulyaDura
             pings.Clear();
         }
 
+        /// <summary>Общий буфер расстояний лучей: волна копирует его к себе, поэтому Emit не выделяет память.</summary>
+        static readonly float[] scratch = new float[72];
+
         /// <summary>Волна эха из точки. strength 0..1 — насколько ярко вспыхнут стены.
         /// ring = false — только подсветка стен, без кольца и искр (дёшево: для луча рельсы).</summary>
         public void Emit(Vector3 origin, float radius, Color color, float strength = 1f, bool ring = true)
@@ -53,7 +56,7 @@ namespace PulyaDura
             origin.y = Ricochet.ShotHeight;
             int rays = ring ? Mathf.Clamp(Mathf.RoundToInt(radius * 9f), 24, 72) : 20;
             float speed = cfg.waveSpeed;
-            var dists = new float[rays];
+            var dists = scratch;
 
             for (int i = 0; i < rays; i++)
             {
@@ -94,16 +97,15 @@ namespace PulyaDura
             NoiseTrap.Ping(origin, radius, strength, speed);
             if (!ring) return;
             var wave = wavePool.Count > 0 ? wavePool.Pop() : CreateWave();
-            wave.Play(origin, dists, radius, speed, color);
+            wave.Play(origin, dists, rays, radius, speed, color);
         }
 
         /// <summary>Кольцо без подсветки: показывает игроку, что он шумит.</summary>
         public void NoiseRing(Vector3 origin, float radius, Color color)
         {
             var wave = wavePool.Count > 0 ? wavePool.Pop() : CreateWave();
-            var dists = new float[32];
-            for (int i = 0; i < dists.Length; i++) dists[i] = radius;
-            wave.Play(origin, dists, radius, radius * 2.5f, color);
+            for (int i = 0; i < 32; i++) scratch[i] = radius;
+            wave.Play(origin, scratch, 32, radius, radius * 2.5f, color);
         }
 
         /// <summary>Вспышка всей комнаты от точки (начало комнаты): показывает планировку на пару секунд.</summary>
@@ -121,9 +123,8 @@ namespace PulyaDura
                 pending.Add(new Pending { time = Time.time + d / cfg.startRevealSpeed, collider = tank.Collider, point = tank.transform.position, color = cfg.enemyReveal, strength = strength });
             }
             var wave = wavePool.Count > 0 ? wavePool.Pop() : CreateWave();
-            var dists = new float[64];
-            for (int i = 0; i < dists.Length; i++) dists[i] = 40f;
-            wave.Play(from + Vector3.up * Ricochet.ShotHeight, dists, 40f, cfg.startRevealSpeed, cfg.echoColor);
+            for (int i = 0; i < 64; i++) scratch[i] = 40f;
+            wave.Play(from + Vector3.up * Ricochet.ShotHeight, scratch, 64, 40f, cfg.startRevealSpeed, cfg.echoColor);
         }
 
         void Update()

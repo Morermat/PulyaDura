@@ -446,6 +446,11 @@ namespace PulyaDura
             stress.Invulnerable = true;
             int frames = 0, slow = 0;
             float total = 0f, worst = 0f;
+            // Мусор в памяти: сколько байт выделяется за кадр и сколько раз за это время сработал сборщик мусора
+            var gcRecorder = UnityEngine.Profiling.Recorder.Get("GC.Alloc");
+            gcRecorder.enabled = true;
+            long allocCount = 0;
+            int gc0 = System.GC.CollectionCount(0);
             int maxProjectiles = 0;
             float end = Time.realtimeSinceStartup + 4f;
             float ang = 0f;
@@ -454,6 +459,7 @@ namespace PulyaDura
                 ang += 23f;
                 Fire(stress, Quaternion.Euler(0f, ang, 0f) * Vector3.forward);
                 frames++;
+                if (gcRecorder.isValid) allocCount += gcRecorder.sampleBlockCount;
                 total += Time.unscaledDeltaTime;
                 worst = Mathf.Max(worst, Time.unscaledDeltaTime);
                 if (Time.unscaledDeltaTime > 0.033f) slow++;
@@ -461,6 +467,8 @@ namespace PulyaDura
                 yield return null;
             }
             float avg = total / Mathf.Max(1, frames);
+            gcRecorder.enabled = false;
+            Note($"память под нагрузкой: {(float)allocCount / Mathf.Max(1, frames):F1} выделений на кадр, сборок мусора: {System.GC.CollectionCount(0) - gc0} за {frames} кадров");
             Check("Нагрузка: средний кадр < 16.7 мс", avg < 0.0167f, $"avg={avg * 1000f:F1} мс, worst={worst * 1000f:F1} мс, кадров > 33 мс: {slow} из {frames}, пуль={maxProjectiles}");
             Shot("13_stress");
             stress.Invulnerable = false;

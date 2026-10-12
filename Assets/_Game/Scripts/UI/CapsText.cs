@@ -12,10 +12,18 @@ namespace PulyaDura
     /// </summary>
     public class CapsText : Text
     {
+        string raw;
+
         public override string text
         {
             get => base.text;
-            set => base.text = Upper(value);
+            set
+            {
+                // Тот же текст, что в прошлый раз, — ничего не делаем (без новой строки и пересборки меша)
+                if (ReferenceEquals(value, raw) || value == raw) return;
+                raw = value;
+                base.text = Upper(value);
+            }
         }
 
         static readonly StringBuilder sb = new();

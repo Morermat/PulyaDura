@@ -24,7 +24,6 @@ namespace PulyaDura
         public static readonly Color SelectedFill = new(0.14f, 0.2f, 0.26f, 1f);
         public static readonly Color IdleFill = new(0.03f, 0.04f, 0.05f, 0.95f);
         public static readonly Color Accent = new(0.64f, 0.76f, 0.86f);
-        public static readonly Color AccentDim = new(0.64f, 0.76f, 0.86f, 0.18f);
         public static readonly Color Danger = new(0.82f, 0.2f, 0.2f);
         public static readonly Color Enemy = new(0.78f, 0.18f, 0.18f);
         public static readonly Color TextColor = new(0.84f, 0.87f, 0.9f);

@@ -41,6 +41,8 @@ namespace PulyaDura
 
         readonly List<Projectile> active = new();
         readonly Stack<ProjectileVisual> pool = new();
+        /// <summary>Пул данных пуль: новая пуля берёт объект отсюда, а не создаёт его — без мусора в памяти.</summary>
+        readonly Stack<Projectile> dataPool = new();
         readonly Stack<RailBeam> beamPool = new();
         readonly RaycastHit[] hits = new RaycastHit[16];
         readonly List<Vector3> railPath = new();
@@ -81,20 +83,22 @@ namespace PulyaDura
 
         public void Spawn(Tank owner, TurretConfig turret, Vector3 origin, Vector3 dir, float advance, ShotMods mods = default, Team? team = null)
         {
-            var p = new Projectile
-            {
-                owner = owner,
-                team = team ?? (owner != null ? owner.Team : Team.Enemy),
-                power = mods.power,
-                mark = mods.mark,
-                ladder = mods.ladder,
-                cfg = turret,
-                pos = origin,
-                prevPos = origin,
-                dir = Prims.Flat(dir).normalized,
-                distanceLeft = turret.range,
-                bouncesLeft = turret.bounces,
-            };
+            // Объект из пула заполняется полностью: ни одно поле не должно остаться от прошлой пули
+            var p = dataPool.Count > 0 ? dataPool.Pop() : new Projectile();
+            p.owner = owner;
+            p.team = team ?? (owner != null ? owner.Team : Team.Enemy);
+            p.power = mods.power;
+            p.mark = mods.mark;
+            p.ladder = mods.ladder;
+            p.cfg = turret;
+            p.pos = origin;
+            p.prevPos = origin;
+            p.dir = Prims.Flat(dir).normalized;
+            p.distanceLeft = turret.range;
+            p.bouncesLeft = turret.bounces;
+            p.bouncesDone = 0;
+            p.dead = false;
+            p.portalCooldown = 0f;
             p.visual = pool.Count > 0 ? pool.Pop() : CreateVisual();
             bool withLight = lights < 14;
             if (withLight) lights++;
@@ -397,6 +401,8 @@ namespace PulyaDura
             p.visual.Hide();
             pool.Push(p.visual);
             p.visual = null;
+            p.owner = null; // не держим ссылку на уничтоженный танк, пока пуля лежит в пуле
+            dataPool.Push(p);
         }
 
         ProjectileVisual CreateVisual()

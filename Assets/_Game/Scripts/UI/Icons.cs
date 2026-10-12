@@ -8,8 +8,8 @@ namespace PulyaDura
     {
         Tank, Armor, Dash, Mirror, Wall, Cannon, Plasma, Shotgun, Rail,
         Sound, Quiet, Clock, Target, Ricochet, Chevron,
-        Plus, Bolt, Eye, Trophy,
-        Logo, Play, Restart, Loop, Home, Pause, Infinity, Mouse, Fullscreen, Power,
+        Bolt, Eye, Trophy,
+        Logo, Play, Restart, Loop, Home, Pause, Infinity, Fullscreen, Power,
     }
 
     /// <summary>
@@ -152,7 +152,6 @@ namespace PulyaDura
             IconId.Ricochet => p => Seg(p, new(-0.8f, 0.7f), new(0f, -0.45f), 0.08f) || Seg(p, new(0f, -0.45f), new(0.7f, 0.55f), 0.08f)
                                     || Circle(p, new(0.75f, 0.62f), 0.15f) || Box(p, new(0f, -0.68f), new(0.85f, 0.06f)),
             IconId.Chevron => p => Poly(p, new(0.9f, 0f), new(-0.6f, 0.75f), new(-0.25f, 0f), new(-0.6f, -0.75f)),
-            IconId.Plus => p => Box(p, Vector2.zero, new(0.24f, 0.78f)) || Box(p, Vector2.zero, new(0.78f, 0.24f)),
             IconId.Bolt => p => Poly(p, new(0.2f, 0.95f), new(-0.6f, -0.08f), new(0.08f, -0.08f)) || Poly(p, new(-0.2f, -0.95f), new(0.6f, 0.08f), new(-0.08f, 0.08f)),
             IconId.Eye => p => (Circle(p, new(0f, -0.55f), 1f) && Circle(p, new(0f, 0.55f), 1f) && !(Circle(p, new(0f, -0.55f), 0.84f) && Circle(p, new(0f, 0.55f), 0.84f)))
                                || Circle(p, Vector2.zero, 0.26f),
@@ -181,7 +180,6 @@ namespace PulyaDura
             // Выход: кольцо с разрывом сверху и чёрточка
             IconId.Power => p => (Ring(p, new(0f, -0.08f), 0.62f, 0.15f) && !InAngle(p - new Vector2(0f, -0.08f), 55f, 125f))
                                  || Seg(p, new(0f, 0.85f), new(0f, 0.15f), 0.09f),
-            IconId.Mouse => p => (Box(p, new(0f, 0f), new(0.45f, 0.75f)) && !Box(p, new(0f, 0f), new(0.32f, 0.62f))) || Seg(p, new(0f, 0.62f), new(0f, 0.2f), 0.06f),
             _ => p => false,
         };
 

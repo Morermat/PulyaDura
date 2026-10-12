@@ -1,4 +1,5 @@
 using System;
+using System.Collections.Generic;
 using UnityEngine;
 
 namespace PulyaDura
@@ -12,9 +13,13 @@ namespace PulyaDura
     {
         LineRenderer line;
         Action<EchoWave> release;
-        float[] dists;
+        float[] dists = new float[0];   // свой буфер: волна живёт дольше, чем вызов Emit
+        int count;
         Vector3[] dirs;
         Vector3[] points;
+
+        // Направления лучей и буфер точек зависят только от числа лучей — общие для всех волн, без выделений памяти
+        static readonly Dictionary<int, (Vector3[] dirs, Vector3[] points)> shapes = new();
         Vector3 origin;
         float speed, life, t;
         Color color;
@@ -34,22 +39,27 @@ namespace PulyaDura
             transform.rotation = Quaternion.Euler(90f, 0f, 0f); // лента лежит на полу
         }
 
-        public void Play(Vector3 from, float[] distances, float radius, float waveSpeed, Color c)
+        /// <param name="distances">До какой точки дойдёт каждый луч; копируется, буфер вызывающего можно переиспользовать</param>
+        /// <param name="n">Сколько лучей из буфера использовать</param>
+        public void Play(Vector3 from, float[] distances, int n, float radius, float waveSpeed, Color c)
         {
             gameObject.SetActive(true);
             origin = new Vector3(from.x, 0.04f, from.z);
-            dists = distances;
-            int n = distances.Length;
-            if (dirs == null || dirs.Length != n)
+            count = n;
+            if (dists.Length < n) dists = new float[n];
+            Array.Copy(distances, dists, n);
+            if (!shapes.TryGetValue(n, out var shape))
             {
-                dirs = new Vector3[n];
-                points = new Vector3[n];
+                shape = (new Vector3[n], new Vector3[n]);
+                for (int i = 0; i < n; i++)
+                {
+                    float a = (float)i / n * Mathf.PI * 2f;
+                    shape.dirs[i] = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
+                }
+                shapes[n] = shape;
             }
-            for (int i = 0; i < n; i++)
-            {
-                float a = (float)i / n * Mathf.PI * 2f;
-                dirs[i] = new Vector3(Mathf.Cos(a), 0f, Mathf.Sin(a));
-            }
+            dirs = shape.dirs;
+            points = shape.points;
             speed = waveSpeed;
             life = radius / waveSpeed + 0.2f;
             t = 0f;
@@ -73,9 +83,9 @@ namespace PulyaDura
         void Tick()
         {
             float r = t * speed;
-            for (int i = 0; i < dirs.Length; i++)
+            for (int i = 0; i < count; i++)
                 points[i] = origin + dirs[i] * Mathf.Min(r, dists[i]);
-            line.SetPositions(points);
+            line.SetPositions(points); // линия копирует точки сразу, поэтому буфер общий
 
             float k = 1f - t / life;
             var c = color / Mathf.Max(0.01f, color.maxColorComponent);

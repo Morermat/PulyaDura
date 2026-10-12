@@ -5,13 +5,27 @@ namespace PulyaDura
 {
     /// <summary>
     /// Стена в темноте. Невидима, пока её не коснётся эхо-волна: тогда контур вспыхивает и гаснет.
+    /// Стен в комнате сотни, поэтому стена «спит» (компонент выключен, Update не вызывается),
+    /// пока ничего не меняется, и просыпается от эха, вспышки или нового постоянного свечения.
     /// </summary>
     [RequireComponent(typeof(MeshRenderer))]
     public class WallBlock : MonoBehaviour
     {
         public static readonly List<WallBlock> All = new();
 
-        [Tooltip("Постоянное свечение (временные стены игрока)")] public float baseGlow;
+        [Tooltip("Постоянное свечение (временные стены игрока)")] [SerializeField] float glow;
+
+        /// <summary>Постоянное свечение (временные стены игрока, бочки). Изменение будит стену.</summary>
+        public float baseGlow
+        {
+            get => glow;
+            set
+            {
+                if (Mathf.Approximately(glow, value)) return;
+                glow = value;
+                Wake();
+            }
+        }
         public Color baseColor = Color.black;
         [Tooltip("Цвет вспышки от эха вместо цвета волны (зелёный ящик с бонусом)")] public Color revealTint = Color.clear;
 
@@ -23,6 +37,7 @@ namespace PulyaDura
         MeshRenderer rend;
         MaterialPropertyBlock mpb;
         bool dirty = true;
+        bool registered;
 
         void Awake()
         {
@@ -30,8 +45,33 @@ namespace PulyaDura
             mpb = new MaterialPropertyBlock();
         }
 
-        void OnEnable() => All.Add(this);
-        void OnDisable() => All.Remove(this);
+        // В списке All стена остаётся и во сне: уходит из него, только когда выключен сам объект или он уничтожен
+        void OnEnable()
+        {
+            if (registered) return;
+            All.Add(this);
+            registered = true;
+        }
+
+        void OnDisable()
+        {
+            if (!gameObject.activeInHierarchy) Unregister();
+        }
+
+        void OnDestroy() => Unregister();
+
+        void Unregister()
+        {
+            if (!registered) return;
+            All.Remove(this);
+            registered = false;
+        }
+
+        void Wake()
+        {
+            dirty = true;
+            if (!enabled) enabled = true;
+        }
 
         /// <param name="remember">false для общей вспышки в начале комнаты: она не должна рисовать карту за игрока</param>
         public void Show(float amount, Color c, bool remember = true)
@@ -39,18 +79,22 @@ namespace PulyaDura
             if (remember && amount >= 0.25f && !Seen)
             {
                 Seen = true;
-                dirty = true;
+                Wake();
             }
             if (amount >= Reveal || amount > 0.6f)
             {
                 Reveal = Mathf.Clamp01(Mathf.Max(amount, Reveal));
                 color = revealTint.maxColorComponent > 0f ? revealTint : c;
-                dirty = true;
+                Wake();
             }
         }
 
         /// <summary>Белая вспышка при попадании.</summary>
-        public void Flash() { flash = 1f; dirty = true; }
+        public void Flash()
+        {
+            flash = 1f;
+            Wake();
+        }
 
         void Update()
         {
@@ -64,7 +108,12 @@ namespace PulyaDura
                 flash = Mathf.Max(0f, flash - Time.deltaTime * 8f);
                 dirty = true;
             }
-            if (!dirty && baseGlow <= 0f) return;
+            if (!dirty)
+            {
+                // Нечему меняться — засыпаем до следующего эха или вспышки
+                enabled = false;
+                return;
+            }
             dirty = false;
 
             float k = Reveal * Reveal * 2.2f;
