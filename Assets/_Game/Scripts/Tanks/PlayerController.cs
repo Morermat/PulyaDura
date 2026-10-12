@@ -51,7 +51,6 @@ namespace PulyaDura
             aimLine.SetVisible(true);
 
             var kb = Keyboard.current;
-            var mouse = Mouse.current;
             var pad = Gamepad.current;
 
             Vector2 mv = Vector2.zero;
@@ -83,9 +82,9 @@ namespace PulyaDura
             {
                 aimDir = new Vector3(rs.x, 0f, rs.y).normalized;
             }
-            else if (mouse != null && Camera.main != null)
+            else if (PointerInput.Available && Camera.main != null)
             {
-                Ray ray = Camera.main.ScreenPointToRay(mouse.position.ReadValue());
+                Ray ray = Camera.main.ScreenPointToRay(PointerInput.Position);
                 var plane = new Plane(Vector3.up, new Vector3(0f, Ricochet.ShotHeight, 0f));
                 if (plane.Raycast(ray, out float enter))
                 {
@@ -95,11 +94,11 @@ namespace PulyaDura
             }
             tank.Visual.SetTurretDirection(aimDir);
 
-            bool fire = (mouse != null && mouse.leftButton.isPressed) || (pad != null && pad.rightTrigger.isPressed);
+            bool fire = PointerInput.LeftHeld || (pad != null && pad.rightTrigger.isPressed);
             if (fire) tank.Weapon.TryFire();
 
             bool ability = (kb != null && kb.spaceKey.wasPressedThisFrame)
-                           || (mouse != null && mouse.rightButton.wasPressedThisFrame)
+                           || PointerInput.RightPressed
                            || (pad != null && (pad.leftTrigger.wasPressedThisFrame || pad.buttonSouth.wasPressedThisFrame));
             if (ability) tank.Ability.TryActivate(move, aimDir);
 

@@ -93,7 +93,33 @@ namespace PulyaDura.EditorTools
         }
 
         /// <summary>Сборка Windows-билда в Builds/Win (папка в .gitignore).</summary>
-        [MenuItem("Пуля — дура/Собрать билд Windows")]
+        [MenuItem("Пуля — дура/Релиз для жюри: Windows")]
+        public static void BuildReleaseWindows() => BuildRelease(BuildTarget.StandaloneWindows64, "Builds/Release/Windows/PulyaDura.exe");
+
+        [MenuItem("Пуля — дура/Релиз для жюри: Linux")]
+        public static void BuildReleaseLinux() => BuildRelease(BuildTarget.StandaloneLinux64, "Builds/Release/Linux/PulyaDura.x86_64");
+
+        /// <summary>Релизный билд: без пометки Development Build и без отладочных клавиш F1–F8.</summary>
+        static void BuildRelease(BuildTarget target, string path)
+        {
+            if (!UnityEditor.BuildPipeline.IsBuildTargetSupported(BuildTargetGroup.Standalone, target))
+            {
+                Debug.LogError($"[ProjectBuilder] Нет модуля сборки для {target}. Установите его в Unity Hub → Installs → Add modules.");
+                if (Application.isBatchMode) EditorApplication.Exit(1);
+                return;
+            }
+            var report = UnityEditor.BuildPipeline.BuildPlayer(new UnityEditor.BuildPlayerOptions
+            {
+                scenes = new[] { ScenePath },
+                locationPathName = path,
+                target = target,
+                options = UnityEditor.BuildOptions.None
+            });
+            Debug.Log($"[ProjectBuilder] Релиз {target}: {report.summary.result}, ошибок {report.summary.totalErrors}");
+            if (Application.isBatchMode) EditorApplication.Exit(report.summary.result == UnityEditor.Build.Reporting.BuildResult.Succeeded ? 0 : 1);
+        }
+
+        [MenuItem("Пуля — дура/Собрать билд Windows (отладка, автотест)")]
         public static void BuildWindows()
         {
             var report = UnityEditor.BuildPipeline.BuildPlayer(new UnityEditor.BuildPlayerOptions

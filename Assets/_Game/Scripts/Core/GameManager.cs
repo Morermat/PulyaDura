@@ -84,6 +84,7 @@ namespace PulyaDura
             SetupEnvironment();
 
             gameObject.AddComponent<TimeController>();
+            gameObject.AddComponent<PointerInput>();
             if (GetComponent<Sfx>() == null) gameObject.AddComponent<Sfx>();
             if (GetComponent<MusicDirector>() == null) gameObject.AddComponent<MusicDirector>();
             if (GetComponent<Announcer>() == null) gameObject.AddComponent<Announcer>();

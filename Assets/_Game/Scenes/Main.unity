@@ -119,7 +119,7 @@ NavMeshSettings:
     debug:
       m_Flags: 0
   m_NavMeshData: {fileID: 0}
---- !u!1 &71421684
+--- !u!1 &779634866
 GameObject:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
@@ -127,11 +127,117 @@ GameObject:
   m_PrefabAsset: {fileID: 0}
   serializedVersion: 6
   m_Component:
-  - component: {fileID: 71421689}
-  - component: {fileID: 71421688}
-  - component: {fileID: 71421687}
-  - component: {fileID: 71421686}
-  - component: {fileID: 71421685}
+  - component: {fileID: 779634871}
+  - component: {fileID: 779634870}
+  - component: {fileID: 779634869}
+  - component: {fileID: 779634868}
+  - component: {fileID: 779634867}
+  m_Layer: 0
+  m_Name: Game
+  m_TagString: Untagged
+  m_Icon: {fileID: 0}
+  m_NavMeshLayer: 0
+  m_StaticEditorFlags: 0
+  m_IsActive: 1
+--- !u!114 &779634867
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 779634866}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: cc9e1c1c23c5dfe45867d70abd6b4ed1, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulyaDura.GameManager
+  config: {fileID: 11400000, guid: 67c49eb0fa718cd4c963a61e14ad2ce3, type: 2}
+--- !u!114 &779634868
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 779634866}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: e9260f63d5f20674fa5c3b153c7cc0c6, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulyaDura.Announcer
+  variants:
+  - firstText: "\u041F\u0423\u041B\u042F"
+    secondText: "\u0414\u0423\u0420\u0410"
+    first: {fileID: 0}
+    second: {fileID: 0}
+    firstResource: voice_pulya
+    secondResource: voice_dura
+  volume: 1
+--- !u!114 &779634869
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 779634866}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 21c437cae14836d4e865a0257922750c, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulyaDura.MusicDirector
+  gameLoop: {fileID: 0}
+  gameBpm: 120
+  gameVolume: 0.42
+  garageLoop: {fileID: 0}
+  garageBpm: 98
+  garageVolume: 0.8
+  calmLoop: {fileID: 0}
+  combatLoop: {fileID: 0}
+  bpm: 100
+  volume: 0.5
+  floorPulse: 1.2
+--- !u!114 &779634870
+MonoBehaviour:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 779634866}
+  m_Enabled: 1
+  m_EditorHideFlags: 0
+  m_Script: {fileID: 11500000, guid: 2632f3afb62c8524480f5066098d4261, type: 3}
+  m_Name: 
+  m_EditorClassIdentifier: Assembly-CSharp::PulyaDura.Sfx
+  overrides: []
+  volume: 0.8
+  ambienceVolume: 0
+--- !u!4 &779634871
+Transform:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  m_GameObject: {fileID: 779634866}
+  serializedVersion: 2
+  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
+  m_LocalPosition: {x: 0, y: 0, z: 0}
+  m_LocalScale: {x: 1, y: 1, z: 1}
+  m_ConstrainProportionsScale: 0
+  m_Children: []
+  m_Father: {fileID: 0}
+  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
+--- !u!1 &987681693
+GameObject:
+  m_ObjectHideFlags: 0
+  m_CorrespondingSourceObject: {fileID: 0}
+  m_PrefabInstance: {fileID: 0}
+  m_PrefabAsset: {fileID: 0}
+  serializedVersion: 6
+  m_Component:
+  - component: {fileID: 987681698}
+  - component: {fileID: 987681697}
+  - component: {fileID: 987681696}
+  - component: {fileID: 987681695}
+  - component: {fileID: 987681694}
   m_Layer: 0
   m_Name: Main Camera
   m_TagString: MainCamera
@@ -139,13 +245,13 @@ GameObject:
   m_NavMeshLayer: 0
   m_StaticEditorFlags: 0
   m_IsActive: 1
---- !u!114 &71421685
+--- !u!114 &987681694
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 71421684}
+  m_GameObject: {fileID: 987681693}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a784dc41ad0a2584ab40b54a1b92dd7b, type: 3}
@@ -154,13 +260,13 @@ MonoBehaviour:
   pitch: 58
   fieldOfView: 34
   maxShake: 0.45
---- !u!114 &71421686
+--- !u!114 &987681695
 MonoBehaviour:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 71421684}
+  m_GameObject: {fileID: 987681693}
   m_Enabled: 1
   m_EditorHideFlags: 0
   m_Script: {fileID: 11500000, guid: a79441f348de89743a2939f4d699eac1, type: 3}
@@ -198,21 +304,21 @@ MonoBehaviour:
     m_VarianceClampScale: 0.9
     m_ContrastAdaptiveSharpening: 0
   m_Version: 2
---- !u!81 &71421687
+--- !u!81 &987681696
 AudioListener:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 71421684}
+  m_GameObject: {fileID: 987681693}
   m_Enabled: 1
---- !u!20 &71421688
+--- !u!20 &987681697
 Camera:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 71421684}
+  m_GameObject: {fileID: 987681693}
   m_Enabled: 1
   serializedVersion: 2
   m_ClearFlags: 2
@@ -257,122 +363,16 @@ Camera:
   m_OcclusionCulling: 1
   m_StereoConvergence: 10
   m_StereoSeparation: 0.022
---- !u!4 &71421689
+--- !u!4 &987681698
 Transform:
   m_ObjectHideFlags: 0
   m_CorrespondingSourceObject: {fileID: 0}
   m_PrefabInstance: {fileID: 0}
   m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 71421684}
+  m_GameObject: {fileID: 987681693}
   serializedVersion: 2
   m_LocalRotation: {x: 0.4848096, y: 0, z: 0, w: 0.8746197}
   m_LocalPosition: {x: 0, y: 20, z: -12}
-  m_LocalScale: {x: 1, y: 1, z: 1}
-  m_ConstrainProportionsScale: 0
-  m_Children: []
-  m_Father: {fileID: 0}
-  m_LocalEulerAnglesHint: {x: 0, y: 0, z: 0}
---- !u!1 &2008426629
-GameObject:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  serializedVersion: 6
-  m_Component:
-  - component: {fileID: 2008426634}
-  - component: {fileID: 2008426633}
-  - component: {fileID: 2008426632}
-  - component: {fileID: 2008426631}
-  - component: {fileID: 2008426630}
-  m_Layer: 0
-  m_Name: Game
-  m_TagString: Untagged
-  m_Icon: {fileID: 0}
-  m_NavMeshLayer: 0
-  m_StaticEditorFlags: 0
-  m_IsActive: 1
---- !u!114 &2008426630
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2008426629}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: cc9e1c1c23c5dfe45867d70abd6b4ed1, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PulyaDura.GameManager
-  config: {fileID: 11400000, guid: 67c49eb0fa718cd4c963a61e14ad2ce3, type: 2}
---- !u!114 &2008426631
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2008426629}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: e9260f63d5f20674fa5c3b153c7cc0c6, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PulyaDura.Announcer
-  variants:
-  - firstText: "\u041F\u0423\u041B\u042F"
-    secondText: "\u0414\u0423\u0420\u0410"
-    first: {fileID: 0}
-    second: {fileID: 0}
-    firstResource: voice_pulya
-    secondResource: voice_dura
-  volume: 1
---- !u!114 &2008426632
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2008426629}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 21c437cae14836d4e865a0257922750c, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PulyaDura.MusicDirector
-  gameLoop: {fileID: 0}
-  gameBpm: 120
-  gameVolume: 0.42
-  garageLoop: {fileID: 0}
-  garageBpm: 98
-  garageVolume: 0.8
-  calmLoop: {fileID: 0}
-  combatLoop: {fileID: 0}
-  bpm: 100
-  volume: 0.5
-  floorPulse: 1.2
---- !u!114 &2008426633
-MonoBehaviour:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2008426629}
-  m_Enabled: 1
-  m_EditorHideFlags: 0
-  m_Script: {fileID: 11500000, guid: 2632f3afb62c8524480f5066098d4261, type: 3}
-  m_Name: 
-  m_EditorClassIdentifier: Assembly-CSharp::PulyaDura.Sfx
-  overrides: []
-  volume: 0.8
-  ambienceVolume: 0
---- !u!4 &2008426634
-Transform:
-  m_ObjectHideFlags: 0
-  m_CorrespondingSourceObject: {fileID: 0}
-  m_PrefabInstance: {fileID: 0}
-  m_PrefabAsset: {fileID: 0}
-  m_GameObject: {fileID: 2008426629}
-  serializedVersion: 2
-  m_LocalRotation: {x: 0, y: 0, z: 0, w: 1}
-  m_LocalPosition: {x: 0, y: 0, z: 0}
   m_LocalScale: {x: 1, y: 1, z: 1}
   m_ConstrainProportionsScale: 0
   m_Children: []
@@ -382,5 +382,5 @@ Transform:
 SceneRoots:
   m_ObjectHideFlags: 0
   m_Roots:
-  - {fileID: 71421689}
-  - {fileID: 2008426634}
+  - {fileID: 987681698}
+  - {fileID: 779634871}
