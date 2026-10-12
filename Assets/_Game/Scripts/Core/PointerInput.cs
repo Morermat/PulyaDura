@@ -18,6 +18,10 @@ namespace PulyaDura
 
         Vector2 lastNew, lastLegacy;
         float legacyOnlyTime;
+        bool disabled;
+
+        // Автотест управляет мышью через Input System, а настоящий курсор живёт своей жизнью — там переключение не нужно
+        void Awake() => disabled = System.Array.IndexOf(System.Environment.GetCommandLineArgs(), "-autotest") >= 0;
 
         /// <summary>Позиция курсора в пикселях экрана.</summary>
         public static Vector2 Position
@@ -67,16 +71,19 @@ namespace PulyaDura
         void Update()
         {
 #if ENABLE_LEGACY_INPUT_MANAGER
-            if (UsingLegacy) return;
+            if (UsingLegacy || disabled) return;
             Vector2 legacy = Input.mousePosition;
             Vector2 now = Mouse.current != null ? Mouse.current.position.ReadValue() : lastNew;
             bool legacyMoved = (legacy - lastLegacy).sqrMagnitude > 4f;
             bool newMoved = (now - lastNew).sqrMagnitude > 0.5f;
             lastLegacy = legacy;
             lastNew = now;
-            // Старый ввод видит движение, новый — нет: суммарно полсекунды движения — переключаемся
+            // Старый ввод видит движение, новый — нет: накопилось полсекунды такого движения — переключаемся.
+            // Любое движение через Input System обнуляет счётчик; без движения он медленно гаснет,
+            // поэтому одиночные скачки курсора (смена разрешения окна) не накапливаются
             if (legacyMoved && !newMoved) legacyOnlyTime += Time.unscaledDeltaTime;
             else if (newMoved) legacyOnlyTime = 0f;
+            else legacyOnlyTime = Mathf.Max(0f, legacyOnlyTime - Time.unscaledDeltaTime * 0.5f);
             if (legacyOnlyTime > 0.5f) SwitchToLegacy();
 #endif
         }
