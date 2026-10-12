@@ -751,6 +751,19 @@ namespace PulyaDura
             Shot("28_rail_echo");
             yield return Wait(0.1f);
 
+            // Луч врага после отскока от стены не бьёт самого стрелка (босс не убивает себя)
+            {
+                var tc = cfg.Enemy('t');
+                var railer = Tank.Spawn(Team.Enemy, cfg.Hull(tc.hullId), cfg.Turret(tc.turretId), tc, CellToWorld(16, 9, 21, 13), Quaternion.identity, gm.LevelRoot);
+                yield return Wait(0.2f);
+                railer.Brain.enabled = false;
+                int railerHp = railer.Hp;
+                ProjectileSystem.I.FireRail(railer, cfg.Turret("rail"), railer.transform.position + Vector3.back * 1f + up, Vector3.back);
+                yield return null;
+                Check("Луч врага после отскока не бьёт его самого", !railer.IsDead && railer.Hp == railerHp, $"броня {railerHp} → {railer.Hp}");
+                railer.TakeDamage(new DamageInfo { amount = 99, source = p, point = railer.transform.position, direction = Vector3.forward });
+            }
+
             // Бонус «Метка» не тратится на выстрел в стену
             p.Weapon.MarkShots = 3;
             p.Visual.SetTurretDirection(Vector3.left);

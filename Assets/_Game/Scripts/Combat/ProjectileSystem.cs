@@ -436,6 +436,8 @@ namespace PulyaDura
                 {
                     if (!hits[k].collider.TryGetComponent<Tank>(out var t) || t.IsDead || t.Invulnerable) continue;
                     if (t == owner && s == 0) continue;
+                    // Луч врага (в том числе босса) после отскока не задевает ни стрелка, ни других врагов
+                    if (owner != null && owner.Team == Team.Enemy && t.Team == Team.Enemy) continue;
                     if (!railHit.Add(t)) continue;
                     if (t.MirrorActive && t != owner && depth < 2)
                     {

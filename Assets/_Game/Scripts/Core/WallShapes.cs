@@ -76,7 +76,7 @@ namespace PulyaDura
                 }
                 Vector2 sign = new(Mathf.Sign(corner[i].x), Mathf.Sign(corner[i].y));
                 Vector2 center = corner[i] - sign * r;
-                int steps = corners[i] >= 1f ? 14 : 8;
+                int steps = corners[i] >= 1f ? 20 : 12;
                 for (int k = 0; k <= steps; k++)
                 {
                     float a = (startDeg[i] + 90f * k / steps) * Mathf.Deg2Rad;
@@ -114,38 +114,48 @@ namespace PulyaDura
             var uvs = new List<Vector2>();
             var tris = new List<int>();
 
-            // Боковые грани. Светящаяся рамка текстуры рисуется по краям UV: вертикальные линии
-            // нужны только на острых углах, поэтому U идёт от 0 до 1 между острыми вершинами,
-            // а на круглой колонне (острых нет) — от 0.1 до 0.9, чтобы шов не светился.
-            int start = rim.FindIndex(r => r.sharp);
-            bool round = start < 0;
-            if (round) start = 0;
-            var order = new List<int>();
-            for (int i = 0; i <= n; i++) order.Add((start + i) % n);
+            // Сторона между двумя острыми углами всегда примыкает к соседней стене: её не видно,
+            // и на ней не должно быть ни светящейся линии, ни каймы — иначе «таблетка» из двух клеток получает шов.
+            var inner = new bool[n];
+            for (int i = 0; i < n; i++) inner[i] = rim[i].sharp && rim[(i + 1) % n].sharp;
+            int firstInner = System.Array.IndexOf(inner, true);
 
-            var runs = new List<(int from, int to)>();
-            int runStart = 0;
-            for (int i = 1; i < order.Count; i++)
-                if (i == order.Count - 1 || rim[order[i]].sharp)
+            // Боковые грани. Рамка текстуры светится на краях UV: по V — верх и низ стены,
+            // по U — вертикальные линии. Видимые стороны здесь только скруглённые, поэтому U идёт от 0.1 до 0.9:
+            // вертикальных швов на дуге нет. Обход начинаем сразу после скрытой стороны (или с 0 у колонны).
+            int start = firstInner < 0 ? 0 : (firstInner + 1) % n;
+            var runs = new List<List<int>>();
+            var current = new List<int>();
+            for (int k = 0; k < n; k++)
+            {
+                int i = (start + k) % n;
+                if (inner[i])
                 {
-                    runs.Add((runStart, i));
-                    runStart = i;
+                    if (current.Count > 0) runs.Add(current);
+                    current = new List<int>();
+                    continue;
                 }
+                current.Add(i);
+            }
+            if (current.Count > 0) runs.Add(current);
 
-            foreach (var (from, to) in runs)
+            foreach (var run in runs)
             {
                 float length = 0f;
-                for (int i = from; i < to; i++) length += (rim[order[i + 1]].p - rim[order[i]].p).magnitude;
+                foreach (int i in run) length += (rim[(i + 1) % n].p - rim[i].p).magnitude;
                 float acc = 0f;
-                for (int i = from; i < to; i++)
+                for (int r = 0; r < run.Count; r++)
                 {
-                    Vector2 a = rim[order[i]].p, b = rim[order[i + 1]].p;
+                    int i = run[r], j = (i + 1) % n;
+                    Vector2 a = rim[i].p, b = rim[j].p;
                     float seg = (b - a).magnitude;
-                    float u0 = acc / length, u1 = (acc + seg) / length;
+                    float u0 = 0.1f + 0.8f * acc / length, u1 = 0.1f + 0.8f * (acc + seg) / length;
                     acc += seg;
-                    if (round) { u0 = 0.1f + u0 * 0.8f; u1 = 0.1f + u1 * 0.8f; }
-                    Vector3 na = SideNormal(rim, order[i], true);
-                    Vector3 nb = SideNormal(rim, order[i + 1], false);
+                    Vector2 own = Outward(b - a);
+                    Vector3 na = r == 0 && firstInner >= 0 ? new Vector3(own.x, 0f, own.y) : SideNormal(rim, i, true);
+                    Vector3 nb = r == run.Count - 1 && firstInner >= 0 ? new Vector3(own.x, 0f, own.y) : SideNormal(rim, j, false);
+                    if (rim[i].sharp) na = new Vector3(own.x, 0f, own.y);
+                    if (rim[j].sharp) nb = new Vector3(own.x, 0f, own.y);
                     int v = verts.Count;
                     verts.Add(new Vector3(a.x, 0f, a.y)); normals.Add(na); uvs.Add(new Vector2(u0, 0f));
                     verts.Add(new Vector3(b.x, 0f, b.y)); normals.Add(nb); uvs.Add(new Vector2(u1, 0f));
@@ -156,7 +166,35 @@ namespace PulyaDura
                 }
             }
 
-            // Крышка: веер из центра, каждая точка края попадает на край UV-квадрата — рамка обводит контур
+            // Крышка: светящаяся кайма постоянной ширины вдоль видимого контура + тёмная середина.
+            // Кайма — полоска, у которой U идёт от 0 (внешний край, яркая рамка текстуры) до EdgeU (внутрь).
+            // Так линия одинаковой толщины и на прямых, и на дугах — как у кубических стен.
+            const float strip = 0.18f;   // ширина каймы: с рамкой текстуры 3/64 даёт ту же толщину линии, что у куба 1.5 м
+            const float edgeU = 0.12f;
+            var innerPts = new Vector2[n];
+            for (int i = 0; i < n; i++)
+            {
+                Vector2 prev = rim[(i - 1 + n) % n].p, cur = rim[i].p, next = rim[(i + 1) % n].p;
+                Vector2 n1 = Outward(cur - prev), n2 = Outward(next - cur);
+                // На стыке со скрытой стороной кайма идёт по нормали видимой стороны — без зазубрины
+                if (inner[(i - 1 + n) % n]) n1 = n2;
+                else if (inner[i]) n2 = n1;
+                Vector2 avg = (n1 + n2).normalized;
+                float miter = Mathf.Max(0.35f, Vector2.Dot(avg, n1));
+                innerPts[i] = cur - avg * (strip / miter);
+            }
+            for (int i = 0; i < n; i++)
+            {
+                int j = (i + 1) % n;
+                float uo = inner[i] ? 0.5f : 0f, ui = inner[i] ? 0.5f : edgeU;
+                int v = verts.Count;
+                verts.Add(new Vector3(rim[i].p.x, height, rim[i].p.y)); normals.Add(Vector3.up); uvs.Add(new Vector2(uo, 0.5f));
+                verts.Add(new Vector3(innerPts[i].x, height, innerPts[i].y)); normals.Add(Vector3.up); uvs.Add(new Vector2(ui, 0.5f));
+                verts.Add(new Vector3(rim[j].p.x, height, rim[j].p.y)); normals.Add(Vector3.up); uvs.Add(new Vector2(uo, 0.5f));
+                verts.Add(new Vector3(innerPts[j].x, height, innerPts[j].y)); normals.Add(Vector3.up); uvs.Add(new Vector2(ui, 0.5f));
+                tris.AddRange(new[] { v, v + 1, v + 2, v + 1, v + 3, v + 2 });
+            }
+            // Середина крышки — веер из центра, тёмная (UV в центре текстуры, где рамки нет)
             Vector2 centroid = Vector2.zero;
             foreach (var r in rim) centroid += r.p;
             centroid /= n;
@@ -164,11 +202,9 @@ namespace PulyaDura
             verts.Add(new Vector3(centroid.x, height, centroid.y)); normals.Add(Vector3.up); uvs.Add(new Vector2(0.5f, 0.5f));
             for (int i = 0; i < n; i++)
             {
-                Vector2 d = rim[i].p - centroid;
-                float m = Mathf.Max(Mathf.Abs(d.x), Mathf.Abs(d.y));
-                verts.Add(new Vector3(rim[i].p.x, height, rim[i].p.y));
+                verts.Add(new Vector3(innerPts[i].x, height, innerPts[i].y));
                 normals.Add(Vector3.up);
-                uvs.Add(new Vector2(0.5f, 0.5f) + (m > 1e-5f ? d / m * 0.5f : Vector2.zero));
+                uvs.Add(new Vector2(0.5f, 0.5f));
             }
             for (int i = 0; i < n; i++) tris.AddRange(new[] { c0, c0 + 1 + (i + 1) % n, c0 + 1 + i });
 
