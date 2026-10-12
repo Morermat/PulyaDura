@@ -134,122 +134,121 @@ namespace PulyaDura
 
         void BuildGarage()
         {
-            // Шапка: эмблема, название, слоган — одним блоком в левом верхнем углу
-            // Левая колонка: всё начинается с x = 40 и имеет ширину 800 — один край слева и справа
-            const float colX = 40f, colW = 800f;
-            var logo = UiKit.Icon("Logo", garageRoot, TL, TL, new Vector2(colX, -28f), 92f, IconId.Logo, UiKit.Accent);
+            // Левая колонка компактная (560): середина экрана остаётся под танк и композицию подиума
+            const float colX = 40f, colW = 560f;
+            var logo = UiKit.Icon("Logo", garageRoot, TL, TL, new Vector2(colX, -30f), 72f, IconId.Logo, UiKit.Accent);
             UiKit.Shadow(logo, 3f, 0.5f);
-            var title = UiKit.Text("Title", garageRoot, TL, TL, new Vector2(colX + 112f, -22f), new Vector2(900f, 90f), "ПУЛЯ — ДУРА", 72, UiKit.Accent, TextAnchor.UpperLeft, Weight.Black);
-            UiKit.Shadow(title, 4f, 0.6f);
-            UiKit.Text("Tagline", garageRoot, TL, TL, new Vector2(colX + 116f, -100f), new Vector2(800f, 34f), "Стреляй, чтобы увидеть", 24, UiKit.TextColor, TextAnchor.UpperLeft, Weight.Bold);
+            var title = UiKit.Text("Title", garageRoot, TL, TL, new Vector2(colX + 88f, -26f), new Vector2(700f, 70f), "ПУЛЯ — ДУРА", 56, UiKit.Accent, TextAnchor.UpperLeft, Weight.Black);
+            UiKit.Shadow(title, 3f, 0.6f);
+            UiKit.Text("Tagline", garageRoot, TL, TL, new Vector2(colX + 90f, -94f), new Vector2(600f, 28f), "Стреляй, чтобы увидеть", 20, UiKit.TextColor, TextAnchor.UpperLeft, Weight.Bold);
 
-            // Правила — в своей панели
-            var rulesPanel = UiKit.Panel("Rules", garageRoot, TL, TL, new Vector2(colX, -152f), new Vector2(colW, 250f));
-            UiKit.Glow(rulesPanel, UiKit.Accent, 0.35f);
+            // Правила
+            var rulesPanel = UiKit.Panel("Rules", garageRoot, TL, TL, new Vector2(colX, -132f), new Vector2(colW, 192f));
+            UiKit.Glow(rulesPanel, UiKit.Accent, 0.3f);
             (IconId icon, Color color, string text)[] rules =
             {
                 (IconId.Tank, UiKit.Accent, "Уничтожь всех врагов в комнате"),
-                (IconId.Ricochet, UiKit.Accent, "Стен не видно — их высвечивает отскок пули"),
+                (IconId.Ricochet, UiKit.Accent, "Стен не видно — их высвечивает отскок"),
                 (IconId.Target, UiKit.Danger, "Отскочившая пуля опасна и для тебя"),
-                (IconId.Sound, UiKit.Danger, "Враги почти слепы, но слышат каждый выстрел"),
+                (IconId.Sound, UiKit.Danger, "Враги почти слепы, но слышат выстрелы"),
             };
             for (int i = 0; i < rules.Length; i++)
             {
-                float y = -44f - i * 54f;
-                UiKit.Icon("Mark", rulesPanel.transform, TL, C, new Vector2(48f, y), 30f, rules[i].icon, rules[i].color);
-                UiKit.Text("Rule", rulesPanel.transform, TL, ML, new Vector2(86f, y), new Vector2(colW - 110f, 40f), rules[i].text, 24, UiKit.TextColor, TextAnchor.MiddleLeft, Weight.Bold);
+                float y = -34f - i * 42f;
+                UiKit.Icon("Mark", rulesPanel.transform, TL, C, new Vector2(38f, y), 24f, rules[i].icon, rules[i].color);
+                UiKit.Text("Rule", rulesPanel.transform, TL, ML, new Vector2(66f, y), new Vector2(colW - 86f, 32f), rules[i].text, 20, UiKit.TextColor, TextAnchor.MiddleLeft, Weight.Bold);
             }
 
-            // Лучшие забеги: рекорд в шапке, колонки и строки одним кеглем — моноширинные колонки совпадают
-            var board = UiKit.Panel("Board", garageRoot, TL, TL, new Vector2(colX, -426f), new Vector2(colW, 262f));
-            UiKit.Glow(board, UiKit.Accent, 0.35f);
-            UiKit.Icon("Trophy", board.transform, TL, C, new Vector2(48f, -40f), 38f, IconId.Trophy, UiKit.Accent);
-            UiKit.Text("Head", board.transform, TL, ML, new Vector2(86f, -40f), new Vector2(400f, 36f), "Лучшие забеги", 28, UiKit.TextColor, TextAnchor.MiddleLeft, Weight.Bold);
-            recordText = UiKit.Text("Record", board.transform, TR, MR, new Vector2(-32f, -40f), new Vector2(360f, 36f), "", 28, UiKit.Accent, TextAnchor.MiddleRight, Weight.Mono);
-            UiKit.Text("Columns", board.transform, TL, TL, new Vector2(36f, -80f), new Vector2(colW - 60f, 28f), " #    ОЧКИ     ВРЕМЯ  ИТОГ", 24, UiKit.Muted, TextAnchor.UpperLeft, Weight.Mono);
-            garageBoard = UiKit.Text("Rows", board.transform, TL, TL, new Vector2(36f, -112f), new Vector2(colW - 60f, 146f), "", 24, UiKit.TextColor, TextAnchor.UpperLeft, Weight.Mono);
-            garageBoard.lineSpacing = 0.92f;
+            // Лучшие забеги
+            var board = UiKit.Panel("Board", garageRoot, TL, TL, new Vector2(colX, -344f), new Vector2(colW, 214f));
+            UiKit.Glow(board, UiKit.Accent, 0.3f);
+            UiKit.Icon("Trophy", board.transform, TL, C, new Vector2(38f, -32f), 28f, IconId.Trophy, UiKit.Accent);
+            UiKit.Text("Head", board.transform, TL, ML, new Vector2(66f, -32f), new Vector2(300f, 30f), "Лучшие забеги", 24, UiKit.TextColor, TextAnchor.MiddleLeft, Weight.Bold);
+            recordText = UiKit.Text("Record", board.transform, TR, MR, new Vector2(-26f, -32f), new Vector2(260f, 30f), "", 20, UiKit.Accent, TextAnchor.MiddleRight, Weight.Mono);
+            UiKit.Text("Columns", board.transform, TL, TL, new Vector2(28f, -62f), new Vector2(colW - 50f, 24f), " #    ОЧКИ     ВРЕМЯ  ИТОГ", 20, UiKit.Muted, TextAnchor.UpperLeft, Weight.Mono);
+            garageBoard = UiKit.Text("Rows", board.transform, TL, TL, new Vector2(28f, -88f), new Vector2(colW - 50f, 120f), "", 20, UiKit.TextColor, TextAnchor.UpperLeft, Weight.Mono);
+            garageBoard.lineSpacing = 0.95f;
 
-            // Карточка выбора справа
-            const float cardW = 640f;
-            var card = UiKit.Panel("Card", garageRoot, TR, TR, new Vector2(-40f, -28f), new Vector2(cardW, 900f));
-            UiKit.Glow(card, UiKit.Accent, 0.4f);
+            // Управление — три короткие строки
+            var keysBar = UiKit.Panel("ControlsBar", garageRoot, TL, TL, new Vector2(colX, -578f), new Vector2(colW, 146f));
+            UiKit.Glow(keysBar, UiKit.Accent, 0.25f);
+            (string, string)[][] rows =
+            {
+                new[] { ("W A S D", "ехать"), ("SHIFT", "крадучись") },
+                new[] { ("МЫШЬ", "целиться"), ("ЛКМ", "огонь"), ("ПРОБЕЛ", "скилл") },
+                new[] { ("ESC", "пауза"), ("R", "переиграть комнату") },
+            };
+            for (int i = 0; i < rows.Length; i++)
+                UiKit.KeyHints("Controls" + i, keysBar.transform, TL, ML, new Vector2(26f, -30f - i * 42f), rows[i], 18);
+            // Авторы музыки: лицензия CC BY требует указать автора там, где звучит трек
+            UiKit.Text("MusicCredits", garageRoot, BL, BL, new Vector2(colX + 2f, 14f), new Vector2(1200f, 20f),
+                "Музыка: Marsel Minga — Drum Machine Battle (CC BY-NC-ND 4.0) · Monplaisir — Turbo Rallye Clicker 4000 (CC0)", 13, new Color(UiKit.Muted.r, UiKit.Muted.g, UiKit.Muted.b, 0.7f), TextAnchor.LowerLeft, Weight.Mono);
+
+            // Карточка выбора справа — тоже компактнее
+            const float cardW = 540f;
+            var card = UiKit.Panel("Card", garageRoot, TR, TR, new Vector2(-40f, -30f), new Vector2(cardW, 800f));
+            UiKit.Glow(card, UiKit.Accent, 0.35f);
             var ct = card.transform;
-            const float pad = 32f;
+            const float pad = 26f;
             float inner = cardW - pad * 2f;
 
-            Section(ct, "КОРПУС", IconId.Tank, -34f, pad);
-            float hw = (inner - (cfg.hulls.Count - 1) * 12f) / cfg.hulls.Count;
+            Section(ct, "КОРПУС", IconId.Tank, -30f, pad);
+            float hw = (inner - (cfg.hulls.Count - 1) * 10f) / cfg.hulls.Count;
             for (int i = 0; i < cfg.hulls.Count; i++)
             {
                 int index = i;
-                hullButtons.Add(UiKit.Button("Hull" + i, ct, TL, TL, new Vector2(pad + i * (hw + 12f), -60f), new Vector2(hw, 96f),
-                    cfg.hulls[i].title, 24, () => gm.SelectHull(index), out _, Weight.Bold, IconOf(cfg.hulls[i].ability)));
+                hullButtons.Add(UiKit.Button("Hull" + i, ct, TL, TL, new Vector2(pad + i * (hw + 10f), -52f), new Vector2(hw, 86f),
+                    cfg.hulls[i].title, 20, () => gm.SelectHull(index), out _, Weight.Bold, IconOf(cfg.hulls[i].ability)));
             }
-            hullInfo = UiKit.Text("HullInfo", ct, TL, TL, new Vector2(pad, -170f), new Vector2(inner, 34f), "", 24, UiKit.TextColor, TextAnchor.UpperLeft, Weight.Bold);
-            statArmor = Stat(ct, "БРОНЯ", -218f, pad, inner);
-            statSpeed = Stat(ct, "СКОРОСТЬ", -244f, pad, inner);
+            hullInfo = UiKit.Text("HullInfo", ct, TL, TL, new Vector2(pad, -152f), new Vector2(inner, 28f), "", 20, UiKit.TextColor, TextAnchor.UpperLeft, Weight.Bold);
+            statArmor = Stat(ct, "БРОНЯ", -196f, pad, inner);
+            statSpeed = Stat(ct, "СКОРОСТЬ", -220f, pad, inner);
 
-            UiKit.Box("Divider", ct, TL, TL, new Vector2(pad, -270f), new Vector2(inner, 1f), UiKit.Line);
-            Section(ct, "ПУШКА", IconId.Cannon, -296f, pad);
-            float tw = (inner - (cfg.turrets.Count - 1) * 12f) / cfg.turrets.Count;
+            UiKit.Box("Divider", ct, TL, TL, new Vector2(pad, -244f), new Vector2(inner, 1f), UiKit.Line);
+            Section(ct, "ПУШКА", IconId.Cannon, -268f, pad);
+            float tw = (inner - (cfg.turrets.Count - 1) * 10f) / cfg.turrets.Count;
             for (int i = 0; i < cfg.turrets.Count; i++)
             {
                 int index = i;
-                turretButtons.Add(UiKit.Button("Turret" + i, ct, TL, TL, new Vector2(pad + i * (tw + 12f), -322f), new Vector2(tw, 96f),
-                    cfg.turrets[i].title, 20, () => gm.SelectTurret(index), out _, Weight.Bold, IconOf(cfg.turrets[i].style)));
+                turretButtons.Add(UiKit.Button("Turret" + i, ct, TL, TL, new Vector2(pad + i * (tw + 10f), -290f), new Vector2(tw, 86f),
+                    cfg.turrets[i].title, 18, () => gm.SelectTurret(index), out _, Weight.Bold, IconOf(cfg.turrets[i].style)));
             }
-            turretInfo = UiKit.Text("TurretInfo", ct, TL, TL, new Vector2(pad, -432f), new Vector2(inner, 34f), "", 24, UiKit.TextColor, TextAnchor.UpperLeft, Weight.Bold);
-            statDamage = Stat(ct, "УРОН", -480f, pad, inner);
-            statRate = Stat(ct, "ТЕМП", -506f, pad, inner);
-            statBounces = Stat(ct, "ОТСКОКИ", -532f, pad, inner);
+            turretInfo = UiKit.Text("TurretInfo", ct, TL, TL, new Vector2(pad, -390f), new Vector2(inner, 28f), "", 20, UiKit.TextColor, TextAnchor.UpperLeft, Weight.Bold);
+            statDamage = Stat(ct, "УРОН", -434f, pad, inner);
+            statRate = Stat(ct, "ТЕМП", -458f, pad, inner);
+            statBounces = Stat(ct, "ОТСКОКИ", -482f, pad, inner);
 
             // Режим: 8 комнат или бесконечный (Tab)
-            float mw = (inner - 12f) / 2f;
-            UiKit.Box("Divider2", ct, TL, TL, new Vector2(pad, -560f), new Vector2(inner, 1f), UiKit.Line);
-            Section(ct, "РЕЖИМ", IconId.Ricochet, -586f, pad);
-            UiKit.Text("TabHint", ct, TR, MR, new Vector2(-pad, -586f), new Vector2(200f, 26f), "TAB", 18, UiKit.Muted, TextAnchor.MiddleRight, Weight.Mono);
-            modeButtons.Add(UiKit.Button("ModeStory", ct, TL, TL, new Vector2(pad, -612f), new Vector2(mw, 84f),
-                "8 комнат", 22, () => gm.SetEndless(false), out _, Weight.Bold, IconId.Target));
-            modeButtons.Add(UiKit.Button("ModeEndless", ct, TL, TL, new Vector2(pad + mw + 12f, -612f), new Vector2(mw, 84f),
-                "Бесконечный", 22, () => gm.SetEndless(true), out _, Weight.Bold, IconId.Infinity));
+            float mw = (inner - 10f) / 2f;
+            UiKit.Box("Divider2", ct, TL, TL, new Vector2(pad, -508f), new Vector2(inner, 1f), UiKit.Line);
+            Section(ct, "РЕЖИМ", IconId.Ricochet, -532f, pad);
+            UiKit.Text("TabHint", ct, TR, MR, new Vector2(-pad, -532f), new Vector2(200f, 24f), "TAB", 16, UiKit.Muted, TextAnchor.MiddleRight, Weight.Mono);
+            modeButtons.Add(UiKit.Button("ModeStory", ct, TL, TL, new Vector2(pad, -554f), new Vector2(mw, 76f),
+                "8 комнат", 20, () => gm.SetEndless(false), out _, Weight.Bold, IconId.Target));
+            modeButtons.Add(UiKit.Button("ModeEndless", ct, TL, TL, new Vector2(pad + mw + 10f, -554f), new Vector2(mw, 76f),
+                "Бесконечный", 20, () => gm.SetEndless(true), out _, Weight.Bold, IconId.Infinity));
 
-            var start = UiKit.Button("Start", ct, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, pad), new Vector2(inner, 112f),
-                "В БОЙ", 56, () => gm.StartRun(), out var startLabel, Weight.Black);
+            var start = UiKit.Button("Start", ct, new Vector2(0.5f, 0f), new Vector2(0.5f, 0f), new Vector2(0f, pad), new Vector2(inner, 100f),
+                "В БОЙ", 48, () => gm.StartRun(), out var startLabel, Weight.Black);
             start.GetComponent<Image>().color = new Color(0.09f, 0.5f, 0.66f, 1f);
             UiKit.FrameOf(start).color = UiKit.Accent;
             UiKit.Glow(start, UiKit.Accent, 0.8f);
-            startLabel.rectTransform.offsetMin = new Vector2(60f, 2f);
-            UiKit.Icon("Aim", start.transform, C, C, new Vector2(-132f, 0f), 64f, IconId.Target, Color.white);
-            UiKit.Text("Enter", start.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-26f, 0f), new Vector2(120f, 30f), "ENTER", 20, new Color(0.7f, 0.95f, 1f, 0.75f), TextAnchor.MiddleRight, Weight.Mono);
-
-            // Управление — в панели-полосе под таблицей; «W A S D» — четыре клавиши
-            var keysBar = UiKit.Panel("ControlsBar", garageRoot, TL, TL, new Vector2(colX, -712f), new Vector2(colW, 124f));
-            UiKit.Glow(keysBar, UiKit.Accent, 0.3f);
-            UiKit.KeyHints("Controls", keysBar.transform, TL, ML, new Vector2(32f, -38f), new[]
-            {
-                ("W A S D", "ехать"), ("SHIFT", "крадучись"), ("МЫШЬ", "целиться"),
-            }, 20);
-            UiKit.KeyHints("Controls2", keysBar.transform, TL, ML, new Vector2(32f, -88f), new[]
-            {
-                ("ЛКМ", "огонь"), ("ПРОБЕЛ", "скилл"), ("ESC", "пауза"), ("R", "переиграть"),
-            }, 20);
-            // Авторы музыки: лицензия CC BY требует указать автора там, где звучит трек
-            UiKit.Text("MusicCredits", garageRoot, TL, TL, new Vector2(colX + 4f, -852f), new Vector2(1200f, 22f),
-                "Музыка: Marsel Minga — Drum Machine Battle (CC BY-NC-ND 4.0) · Monplaisir — Turbo Rallye Clicker 4000 (CC0)", 14, new Color(UiKit.Muted.r, UiKit.Muted.g, UiKit.Muted.b, 0.75f), TextAnchor.UpperLeft, Weight.Mono);
+            startLabel.rectTransform.offsetMin = new Vector2(50f, 2f);
+            UiKit.Icon("Aim", start.transform, C, C, new Vector2(-112f, 0f), 52f, IconId.Target, Color.white);
+            UiKit.Text("Enter", start.transform, new Vector2(1f, 0.5f), new Vector2(1f, 0.5f), new Vector2(-22f, 0f), new Vector2(100f, 26f), "ENTER", 16, new Color(0.7f, 0.95f, 1f, 0.75f), TextAnchor.MiddleRight, Weight.Mono);
         }
 
         /// <summary>Заголовок секции карточки: иконка и подпись.</summary>
         void Section(Transform parent, string text, IconId icon, float y, float pad)
         {
-            UiKit.Icon("SectionIcon", parent, TL, ML, new Vector2(pad, y), 24f, icon, UiKit.Accent);
-            UiKit.Text("Section", parent, TL, ML, new Vector2(pad + 34f, y), new Vector2(300f, 28f), text, 24, UiKit.TextColor, TextAnchor.MiddleLeft, Weight.Bold);
+            UiKit.Icon("SectionIcon", parent, TL, ML, new Vector2(pad, y), 20f, icon, UiKit.Accent);
+            UiKit.Text("Section", parent, TL, ML, new Vector2(pad + 30f, y), new Vector2(300f, 26f), text, 20, UiKit.TextColor, TextAnchor.MiddleLeft, Weight.Bold);
         }
 
         Image Stat(Transform parent, string name, float y, float pad, float inner)
         {
-            UiKit.Text(name, parent, TL, ML, new Vector2(pad, y), new Vector2(160f, 24f), name, 18, UiKit.Muted, TextAnchor.MiddleLeft, Weight.Mono);
-            return UiKit.Bar(name + "Bar", parent, TL, ML, new Vector2(pad + 160f, y), new Vector2(inner - 160f, 8f), UiKit.Accent);
+            UiKit.Text(name, parent, TL, ML, new Vector2(pad, y), new Vector2(130f, 22f), name, 16, UiKit.Muted, TextAnchor.MiddleLeft, Weight.Mono);
+            return UiKit.Bar(name + "Bar", parent, TL, ML, new Vector2(pad + 130f, y), new Vector2(inner - 130f, 6f), UiKit.Accent);
         }
 
         public void RefreshGarage()

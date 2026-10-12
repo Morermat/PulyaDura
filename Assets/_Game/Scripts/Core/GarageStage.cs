@@ -61,33 +61,34 @@ namespace PulyaDura
                 var r = Prims.Part("DecorWall", PrimitiveType.Cube, transform, p + Vector3.up * s * 0.5f, Vector3.one * s, Mats.Wall);
                 r.SetPropertyBlock(wallGlow);
             }
-            // Всё стоит в «окне» между левой колонкой интерфейса и карточкой — прямо за танком.
-            // Задняя стена из трёх блоков с загнутым краем слева
-            for (int i = 0; i < 3; i++) Block(new Vector3(-1.1f + i * s, 0f, 3.6f));
-            Block(new Vector3(-1.1f, 0f, 3.6f - s));
+            // Композиция занимает середину экрана между левой колонкой и карточкой.
+            // Слева угол комнаты: задняя стена и боковая, уходящая к камере
+            for (int i = 0; i < 4; i++) Block(new Vector3(-2.4f + i * s, 0f, 4.2f));
+            for (int i = 1; i < 4; i++) Block(new Vector3(-2.4f, 0f, 4.2f - i * s));
 
             // Решётка продолжает заднюю стену вправо: стойки и две светлые перекладины
             var dark = Mats.Lit(new Color(0.07f, 0.08f, 0.1f), 0.4f);
             var bar = Mats.Unlit(new Color(0.9f, 1f, 1.15f) * 0.6f);
-            for (int i = 0; i <= 2; i++)
-                Prims.Part("FencePost", PrimitiveType.Cube, transform, new Vector3(1.15f + i * 0.5f, 0.38f, 3.6f), new Vector3(0.07f, 0.76f, 0.07f), dark);
+            // Справа решётка продолжает заднюю стену
+            for (int i = 0; i <= 3; i++)
+                Prims.Part("FencePost", PrimitiveType.Cube, transform, new Vector3(0.75f + i * 0.55f, 0.38f, 4.2f), new Vector3(0.07f, 0.76f, 0.07f), dark);
             foreach (float y in new[] { 0.32f, 0.66f })
-                Prims.Part("FenceBar", PrimitiveType.Cube, transform, new Vector3(1.65f, y, 3.6f), new Vector3(1.06f, 0.035f, 0.035f), bar).shadowCastingMode = ShadowCastingMode.Off;
+                Prims.Part("FenceBar", PrimitiveType.Cube, transform, new Vector3(1.575f, y, 4.2f), new Vector3(1.72f, 0.035f, 0.035f), bar).shadowCastingMode = ShadowCastingMode.Off;
 
             // Круглая колонна справа
             var pillar = new GameObject("DecorPillar");
             pillar.transform.SetParent(transform, false);
-            pillar.transform.localPosition = new Vector3(1.7f, 0f, 2.5f);
+            pillar.transform.localPosition = new Vector3(2.4f, 0f, 2.6f);
             pillar.AddComponent<MeshFilter>().sharedMesh = WallShapes.Get(new[] { 0.5f, 0.5f, 0.5f, 0.5f }, 0.8f, 0.9f);
             var pr = pillar.AddComponent<MeshRenderer>();
             pr.sharedMaterial = Mats.Wall;
             pr.SetPropertyBlock(wallGlow);
 
             // Красная бочка и зелёный ящик с бонусом
-            Prims.Part("DecorBarrel", PrimitiveType.Cylinder, transform, new Vector3(-0.2f, 0.36f, 2.7f), new Vector3(0.55f, 0.36f, 0.55f), Mats.Lit(new Color(0.35f, 0.05f, 0.04f), 0.5f));
+            Prims.Part("DecorBarrel", PrimitiveType.Cylinder, transform, new Vector3(-1.5f, 0.36f, 2.2f), new Vector3(0.55f, 0.36f, 0.55f), Mats.Lit(new Color(0.35f, 0.05f, 0.04f), 0.5f));
             foreach (float y in new[] { 0.18f, 0.54f })
-                Prims.Part("DecorHoop", PrimitiveType.Cylinder, transform, new Vector3(-0.2f, y, 2.7f), new Vector3(0.58f, 0.025f, 0.58f), Mats.Unlit(new Color(2.4f, 0.25f, 0.1f))).shadowCastingMode = ShadowCastingMode.Off;
-            var box = Prims.Part("DecorSupply", PrimitiveType.Cube, transform, new Vector3(0.75f, 0.25f, 2.9f), new Vector3(0.5f, 0.5f, 0.5f), Mats.Crate, Quaternion.Euler(0f, 18f, 0f));
+                Prims.Part("DecorHoop", PrimitiveType.Cylinder, transform, new Vector3(-1.5f, y, 2.2f), new Vector3(0.58f, 0.025f, 0.58f), Mats.Unlit(new Color(2.4f, 0.25f, 0.1f))).shadowCastingMode = ShadowCastingMode.Off;
+            var box = Prims.Part("DecorSupply", PrimitiveType.Cube, transform, new Vector3(1.6f, 0.25f, 1.2f), new Vector3(0.5f, 0.5f, 0.5f), Mats.Crate, Quaternion.Euler(0f, 18f, 0f));
             var boxGlow = new MaterialPropertyBlock();
             boxGlow.SetColor(Mats.BaseColor, new Color(0.1f, 0.3f, 0.14f));
             boxGlow.SetColor(Mats.EmissionColor, new Color(0.4f, 2.8f, 0.7f) * 0.8f);
@@ -104,7 +105,7 @@ namespace PulyaDura
             for (int i = 0; i < 96; i++)
             {
                 float a = i * Mathf.PI * 2f / 96f;
-                circle.SetPosition(i, new Vector3(Mathf.Cos(a) * 2.2f, 0.02f, Mathf.Sin(a) * 2.2f));
+                circle.SetPosition(i, new Vector3(Mathf.Cos(a) * 2.8f, 0.02f, Mathf.Sin(a) * 2.8f));
             }
             circle.startColor = circle.endColor = (Color)EchoSystem.Ldr(cfg.echoColor) * 0.45f;
             circle.shadowCastingMode = ShadowCastingMode.Off;
@@ -112,7 +113,7 @@ namespace PulyaDura
 
         /// <summary>Камера гаража медленно покачивается — сцена живая. Автотест выключает это для своих снимков.</summary>
         public static bool SwayEnabled = true;
-        static readonly Vector3 LookTarget = Position + new Vector3(-0.15f, 0.45f, 0.9f);
+        static readonly Vector3 LookTarget = Position + new Vector3(0f, 0.45f, 1.2f);
 
         public void Show(HullConfig hull, TurretConfig turret)
         {
@@ -127,7 +128,7 @@ namespace PulyaDura
             visual.SetTurretLocalYaw(25f);
             visual.Reveal(0.6f);
             // Танк чуть правее центра: слева заголовок, справа карточка выбора
-            CameraRig.I.LookAt(LookTarget, 7.8f, 27f);
+            CameraRig.I.LookAt(LookTarget, 8.6f, 28f);
         }
 
         public void Hide() => gameObject.SetActive(false);
@@ -138,7 +139,7 @@ namespace PulyaDura
             if (SwayEnabled)
             {
                 float t = Time.unscaledTime;
-                CameraRig.I.LookAt(LookTarget, 7.8f + Mathf.Sin(t * 0.31f) * 0.25f, 27f + Mathf.Sin(t * 0.23f) * 1.5f, Mathf.Sin(t * 0.17f) * 7f);
+                CameraRig.I.LookAt(LookTarget, 8.6f + Mathf.Sin(t * 0.31f) * 0.25f, 28f + Mathf.Sin(t * 0.23f) * 1.5f, Mathf.Sin(t * 0.17f) * 7f);
             }
             // Подиум «дышит» сонаром — тот же эффект, что и в игре
             pingTimer -= Time.unscaledDeltaTime;

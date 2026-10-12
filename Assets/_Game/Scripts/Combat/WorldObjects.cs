@@ -263,10 +263,14 @@ namespace PulyaDura
     /// <summary>
     /// Шумовая ловушка: наехал — она воет и зовёт всех врагов комнаты к себе.
     /// Её можно использовать и против врагов: выманить их и зайти с тыла.
+    /// Ловушка скрыта: в темноте её не видно, на секунду-две её высвечивает только волна эха (Ping).
+    /// Ставятся у стен — там, где чаще всего бывают отскоки.
     /// </summary>
     public class NoiseTrap : MonoBehaviour
     {
         float last = -10f;
+        float reveal, pendingTime = -1f, pendingStrength;
+        static readonly List<NoiseTrap> all = new();
         MeshRenderer plate;
         MaterialPropertyBlock mpb;
         static readonly Color Amber = new(2.8f, 0.3f, 0.25f);
@@ -277,8 +281,8 @@ namespace PulyaDura
             go.transform.SetParent(parent, true);
             go.transform.position = new Vector3(pos.x, 0f, pos.z);
             var trap = go.AddComponent<NoiseTrap>();
-            Prims.Part("Base", PrimitiveType.Cylinder, go.transform, new Vector3(0f, 0.02f, 0f), new Vector3(1f, 0.02f, 1f), Mats.Lit(new Color(0.12f, 0.09f, 0.05f), 0.6f));
-            trap.plate = Prims.Part("Plate", PrimitiveType.Cylinder, go.transform, new Vector3(0f, 0.045f, 0f), new Vector3(0.55f, 0.01f, 0.55f), Mats.Unlit(Amber * 0.25f));
+            Prims.Part("Base", PrimitiveType.Cylinder, go.transform, new Vector3(0f, 0.02f, 0f), new Vector3(1f, 0.02f, 1f), Mats.Lit(new Color(0.07f, 0.075f, 0.09f), 0.6f));
+            trap.plate = Prims.Part("Plate", PrimitiveType.Cylinder, go.transform, new Vector3(0f, 0.045f, 0f), new Vector3(0.55f, 0.01f, 0.55f), Mats.Unlit(Color.black));
             trap.plate.shadowCastingMode = UnityEngine.Rendering.ShadowCastingMode.Off;
             trap.mpb = new MaterialPropertyBlock();
             var trigger = go.AddComponent<SphereCollider>();
@@ -306,11 +310,36 @@ namespace PulyaDura
             }
         }
 
+        void OnEnable() => all.Add(this);
+        void OnDisable() => all.Remove(this);
+
+        /// <summary>Волна эха: ловушки в радиусе вспыхнут, когда до них дойдёт фронт волны.</summary>
+        public static void Ping(Vector3 origin, float radius, float strength, float speed)
+        {
+            foreach (var t in all)
+            {
+                float d = Prims.Flat(t.transform.position - origin).magnitude;
+                if (d > radius + 0.6f) continue;
+                t.pendingTime = Time.time + d / Mathf.Max(0.01f, speed);
+                t.pendingStrength = strength * Mathf.Lerp(1f, 0.5f, d / radius);
+            }
+        }
+
+        /// <summary>Ловушку уже высвечивало эхо (для автотеста).</summary>
+        public bool Revealed => reveal > 0.05f;
+
         void Update()
         {
+            if (pendingTime >= 0f && Time.time >= pendingTime)
+            {
+                pendingTime = -1f;
+                reveal = Mathf.Max(reveal, pendingStrength);
+            }
+            if (reveal > 0f) reveal = Mathf.Max(0f, reveal - Time.deltaTime / GameManager.Cfg.revealFade);
+            // Сработала — воет и мигает; иначе видна только после эха
             float k = Mathf.Clamp01(1f - (Time.time - last) / 1.5f);
             float blink = k > 0f ? (Mathf.Repeat(Time.time * 8f, 1f) > 0.5f ? 1f : 0.3f) : 0f;
-            mpb.SetColor(Mats.BaseColor, Amber * (0.25f + blink * k * 1.5f));
+            mpb.SetColor(Mats.BaseColor, Amber * (reveal * reveal * 1.2f + blink * k * 1.5f));
             plate.SetPropertyBlock(mpb);
         }
     }

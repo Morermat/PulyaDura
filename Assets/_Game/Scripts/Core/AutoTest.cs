@@ -927,6 +927,10 @@ namespace PulyaDura
             var trap = FindAnyObjectByType<NoiseTrap>();
             var hunters = new List<Tank>();
             foreach (var t in Tank.All) if (t.Team == Team.Enemy && t.Enemy.behaviour == EnemyBehaviour.Hunter) hunters.Add(t);
+            bool hiddenAtStart = trap != null && !trap.Revealed;
+            if (trap != null) EchoSystem.I.Emit(trap.transform.position + Vector3.right * 1.5f, 4f, GameManager.Cfg.echoColor, 1f);
+            yield return Wait(0.4f);
+            Check("Ловушка скрыта, пока её не высветит эхо", hiddenAtStart && trap.Revealed, $"скрыта в начале={hiddenAtStart}, после эха={trap != null && trap.Revealed}");
             bool calmBefore = hunters.TrueForAll(h => !h.Brain.Alerted);
             if (trap != null) p.TeleportTo(trap.transform.position);
             yield return Wait(0.8f);

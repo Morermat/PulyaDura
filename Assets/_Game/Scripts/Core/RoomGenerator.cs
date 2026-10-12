@@ -185,7 +185,31 @@ namespace PulyaDura
                 int barrels = 1 + rng.Next(Mathf.Min(3, depth / 2 + 1));
                 for (int i = 0; i < barrels; i++) Put(Take(c => enemyCells.Exists(e => (e - c).sqrMagnitude <= 18)) ?? Take(), 'x');
             }
-            if (depth >= 3 && rng.NextDouble() < 0.5) Put(Take(c => Mathf.Abs(c.x - w / 2) < w / 4), 'n');
+            // Скрытые ловушки — вплотную к стенам, там, где отскоки чаще всего дают эхо
+            if (depth >= 2)
+            {
+                var nearWalls = new List<Vector2Int>();
+                for (int x = 1; x < w - 1; x++)
+                    for (int y = 1; y < h - 1; y++)
+                    {
+                        if (g[x, y] != '.' || (V(x, y) - player).sqrMagnitude < 16) continue;
+                        bool wall = g[x + 1, y] == '#' || g[x - 1, y] == '#' || g[x, y + 1] == '#' || g[x, y - 1] == '#';
+                        if (wall) nearWalls.Add(V(x, y));
+                    }
+                Shuffle(nearWalls, rng);
+                int traps = Mathf.Min(1 + depth / 3, 4), done = 0;
+                foreach (var c in nearWalls)
+                {
+                    if (done >= traps) break;
+                    bool clear = true;
+                    for (int dx = -1; dx <= 1 && clear; dx++)
+                        for (int dy = -1; dy <= 1; dy++)
+                            if (g[c.x + dx, c.y + dy] != '.' && g[c.x + dx, c.y + dy] != '#') { clear = false; break; }
+                    if (!clear) continue;
+                    g[c.x, c.y] = 'n';
+                    done++;
+                }
+            }
             if (depth >= 3 && rng.NextDouble() < 0.4)
             {
                 var a = Take(c => c.x < w / 2);
