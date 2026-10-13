@@ -585,27 +585,12 @@ namespace PulyaDura
         {
             ResetWorld();
             State = GameState.Result;
+            // Забег «вне зачёта» (продолжение после провала) в таблицу не попадает
             if (!recordRun)
             {
-                ui.ShowResult(win, Stats, false, PlayerPrefs.GetFloat("best_time", 0f), PlayerPrefs.GetInt("best_rooms", 0), 0);
+                ui.ShowResult(win, Stats, 0);
                 return;
             }
-            float bestTime = PlayerPrefs.GetFloat("best_time", 0f);
-            int bestRooms = PlayerPrefs.GetInt("best_rooms", 0);
-            bool record = false;
-            if (win && !Endless && (bestTime <= 0f || Stats.time < bestTime))
-            {
-                bestTime = Stats.time;
-                PlayerPrefs.SetFloat("best_time", bestTime);
-                record = true;
-            }
-            if (!Endless && Stats.rooms > bestRooms)
-            {
-                bestRooms = Stats.rooms;
-                PlayerPrefs.SetInt("best_rooms", bestRooms);
-                record |= !win;
-            }
-            PlayerPrefs.Save();
             // Победа: 1000 за каждую оставшуюся жизнь и 15 очков за каждую секунду быстрее 6 минут
             if (win) AddScore(Lives * 1000 + Mathf.Max(0, Mathf.RoundToInt((360f - Stats.time) * 15f)), null);
             int place = Stats.score <= 0 ? 0 : Leaderboard.Add(new RunRecord
@@ -613,7 +598,7 @@ namespace PulyaDura
                 score = Stats.score, time = Stats.time, rooms = Stats.rooms, win = win, kills = Stats.kills, endless = Endless,
                 hull = config.hulls[HullIndex].title, turret = config.turrets[TurretIndex].title, ticks = DateTime.Now.Ticks,
             });
-            ui.ShowResult(win, Stats, record, bestTime, bestRooms, place);
+            ui.ShowResult(win, Stats, place);
         }
 
         /// <summary>Очки (см. Leaderboard). Если задана точка — над ней всплывает «+N».</summary>

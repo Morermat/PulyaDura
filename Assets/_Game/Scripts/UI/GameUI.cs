@@ -795,7 +795,8 @@ namespace PulyaDura
             return value;
         }
 
-        public void ShowResult(bool win, RunStats s, bool record, float bestTime, int bestRooms, int place = 0)
+        /// <param name="place">место забега в таблице (1..10) или 0, если не попал</param>
+        public void ShowResult(bool win, RunStats s, int place)
         {
             EndSlam();
             hudRoot.gameObject.SetActive(false);
@@ -812,14 +813,17 @@ namespace PulyaDura
             resultKills.text = s.score.ToString();
             resultRicochets.text = s.ricochetKills.ToString();
             resultBoard.text = BoardText(10, place);
-            // Лучшее достижение: время полного прохождения важнее числа комнат
-            resultRecord.text = record ? "НОВЫЙ РЕКОРД!"
-                : bestTime > 0f ? $"Рекорд: {FormatTime(bestTime)}" : $"Рекорд: {bestRooms} из {gm.RoomCount} комнат";
-            resultRecord.color = record ? UiKit.Danger : UiKit.Muted;
+            // Рекорд — первая строка таблицы забегов (как в гараже), чтобы цифры нигде не расходились
             if (place > 0)
             {
                 resultRecord.text = place == 1 ? "НОВЫЙ РЕКОРД!" : $"{place}-Е МЕСТО В ТАБЛИЦЕ";
                 resultRecord.color = place <= 3 ? UiKit.Danger : UiKit.TextColor;
+            }
+            else
+            {
+                var top = Leaderboard.Top;
+                resultRecord.text = top.Count > 0 ? $"Рекорд: {top[0].score}" : "";
+                resultRecord.color = UiKit.Muted;
             }
         }
 
