@@ -43,4 +43,4 @@ Thumbs.db
 КАК_УСТРОЕНО.md
 
 # Распакованные сборки: в репозитории только zip из Release
-/Release/*.app/
+/Release/*/
