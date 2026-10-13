@@ -7,6 +7,14 @@
 **Готовая сборка** лежит в папке [`Release`](Release):
 
 - **Windows:** распакуйте `PulyaDura_Windows.zip` и запустите `Пуля — дура.exe`.
+- **macOS** (Intel и Apple Silicon, macOS 12+): распакуйте `PulyaDura_Mac.zip`. Сборка не подписана, поэтому macOS её заблокирует. Один раз выполните в Терминале из папки, где лежит `PulyaDura.app`:
+
+  ```
+  xattr -cr PulyaDura.app
+  codesign --force --deep -s - PulyaDura.app
+  ```
+
+  После этого игра запускается двойным щелчком.
 
 **Из Unity:** откройте папку в **Unity 6000.6.5f1** и нажмите **Play**: сцена `Assets/_Game/Scenes/Main.unity` откроется и запустится сама.
 
