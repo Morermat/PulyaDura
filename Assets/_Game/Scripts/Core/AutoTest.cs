@@ -203,11 +203,14 @@ namespace PulyaDura
             yield return null;
             Check("Esc снимает паузу", !gm.Paused && Time.timeScale > 0f);
 
-            // 9. Restart
+            // 9. Restart. Очки, набранные в комнате, R откатывает: иначе это бесконечный фарм
             yield return Wait(0.5f);
+            int scoreBeforeR = gm.Stats.score;
+            gm.AddScore(300, null);
             yield return Tap(Key.R);
             yield return Wait(0.3f);
             Check("R перезапускает забег", gm.State == GameState.Playing && gm.RoomIndex == 0 && gm.Lives == GameManager.Cfg.lives);
+            Check("R откатывает очки, набранные в комнате", gm.Stats.score == scoreBeforeR, $"{scoreBeforeR} → +300 → R → {gm.Stats.score}");
 
             Check("Музыка играет", MusicDirector.I != null && MusicDirector.I.IsPlaying);
             Check("В HUD счётчик врагов комнаты", gm.EnemiesTotal > 0 && gm.EnemiesLeft == gm.EnemiesTotal, $"{gm.EnemiesLeft}/{gm.EnemiesTotal}");

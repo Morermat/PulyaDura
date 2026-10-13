@@ -183,7 +183,7 @@ namespace PulyaDura
         {
             new HullConfig
             {
-                id = "strizh", title = "Стриж", style = HullStyle.Light, description = "Быстрый, 3 брони",
+                id = "strizh", title = "Стриж", style = HullStyle.Light, description = "Быстрый, 4 брони",
                 maxHp = 4, speed = 6.6f, size = new Vector2(0.95f, 1.15f), height = 0.26f,
                 ability = AbilityType.Dash, abilityTitle = "Рывок",
                 abilityDescription = "таранит врагов и сбивает пули",

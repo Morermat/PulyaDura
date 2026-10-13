@@ -16,7 +16,7 @@ MonoBehaviour:
   hulls:
   - id: strizh
     title: "\u0421\u0442\u0440\u0438\u0436"
-    description: "\u0411\u044B\u0441\u0442\u0440\u044B\u0439, 3 \u0431\u0440\u043E\u043D\u0438"
+    description: "\u0411\u044B\u0441\u0442\u0440\u044B\u0439, 4 \u0431\u0440\u043E\u043D\u0438"
     style: 0
     maxHp: 4
     speed: 6.6

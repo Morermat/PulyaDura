@@ -73,6 +73,9 @@ namespace PulyaDura
         readonly HashSet<int> hintsShown = new();
         bool hurtThisRoom;
         bool lifeBonusPending;
+        // Очки и счётчики на входе в комнату. R откатывает к ним: иначе убил → R → враги снова на месте → убил
+        // ещё раз, и очки копятся бесконечно. Время не откатываем — оно идёт честно
+        int roomScore, roomKills, roomRicochetKills, roomPickups, roomBestStreak;
         int scaledForHeight;
 
         void Awake()
@@ -319,6 +322,11 @@ namespace PulyaDura
         public void RestartRoom()
         {
             if (State != GameState.Playing) return;
+            Stats.score = roomScore;
+            Stats.kills = roomKills;
+            Stats.ricochetKills = roomRicochetKills;
+            Stats.pickups = roomPickups;
+            Stats.bestStreak = roomBestStreak;
             LoadRoom(RoomIndex);
         }
 
@@ -367,6 +375,11 @@ namespace PulyaDura
             hurtThisRoom = false;
             RoomIndex = index;
             streak = 0;
+            roomScore = Stats.score;
+            roomKills = Stats.kills;
+            roomRicochetKills = Stats.ricochetKills;
+            roomPickups = Stats.pickups;
+            roomBestStreak = Stats.bestStreak;
             var room = RoomAt(index);
             CurrentRoom = room;
             level.Build(room);
