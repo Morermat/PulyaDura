@@ -760,7 +760,7 @@ namespace PulyaDura
             p.Invulnerable = true;
             p.GetComponent<PlayerController>().enabled = false;
             Crate crate = null;
-            foreach (var c in FindObjectsByType<Crate>(FindObjectsSortMode.None))
+            foreach (var c in FindObjectsByType<Crate>())
                 if (!(c is SupplyBox) && Mathf.Abs(c.transform.position.z - CellToWorld(3, 6, 21, 13).z) < 0.3f && c.transform.position.x < -8f) crate = c;
             int litBefore = 0;
             foreach (var w in WallBlock.All) if (w.Reveal > 0.3f) litBefore++;
@@ -831,7 +831,7 @@ namespace PulyaDura
             p = gm.Player;
             p.Invulnerable = true;
             int fences = 0;
-            foreach (var col in FindObjectsByType<BoxCollider>(FindObjectsSortMode.None)) if (col.gameObject.layer == Layers.Fence) fences++;
+            foreach (var col in FindObjectsByType<BoxCollider>()) if (col.gameObject.layer == Layers.Fence) fences++;
             Tank turret = null;
             foreach (var t in Tank.All) if (t.Team == Team.Enemy && t.Enemy.symbol == "t") turret = t;
             turret.Brain.enabled = false;
@@ -864,7 +864,7 @@ namespace PulyaDura
             var p = gm.Player;
             int listeners = 0;
             AudioListener ears = null;
-            foreach (var l in FindObjectsByType<AudioListener>(FindObjectsSortMode.None))
+            foreach (var l in FindObjectsByType<AudioListener>())
                 if (l.isActiveAndEnabled) { listeners++; ears = l; }
             float earsOff = ears != null ? Prims.Flat(ears.transform.position - p.transform.position).magnitude : 99f;
             Check("Объёмный звук: один слушатель, он над игроком", listeners == 1 && earsOff < 0.5f, $"слушателей {listeners}, смещение {earsOff:F2}");
