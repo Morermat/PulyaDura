@@ -66,6 +66,18 @@ namespace PulyaDura
         static int DamageOf(Tank owner, TurretConfig turret) =>
             owner != null && owner.Enemy != null && owner.Enemy.damageOverride > 0 ? owner.Enemy.damageOverride : turret.damage;
 
+        /// <summary>
+        /// Урон выстрела по цели. «Ваншот» убивает обычного врага (и самого стрелка, если пуля-дура вернётся),
+        /// а босса не сносит: по нему тройной урон пушки, но не больше половины его брони.
+        /// </summary>
+        static int DamageTo(Tank target, Tank owner, TurretConfig turret, bool power)
+        {
+            int baseDamage = DamageOf(owner, turret);
+            if (!power) return baseDamage;
+            if (target.Enemy != null && target.Enemy.boss) return Mathf.Clamp(baseDamage * 3, baseDamage, Mathf.Max(1, target.MaxHp / 2));
+            return 99;
+        }
+
         /// <summary>Высота отскока: у игрока продолжает лестницу тонов от ступени выстрела, у врагов — своя гамма октавой ниже.</summary>
         public static float BouncePitch(int bounce, Team team, int ladder = 0) =>
             team == Team.Player ? Sfx.LadderPitch(ladder + bounce) : Sfx.LadderPitch(bounce) * 0.5f;
@@ -282,7 +294,7 @@ namespace PulyaDura
                 GameManager.I.UI.Floating(p.pos + Vector3.up, "ЩИТ", UiKit.Accent, 34);
                 return;
             }
-            tank.TakeDamage(new DamageInfo { amount = p.power ? 99 : DamageOf(p.owner, p.cfg), source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone, explosion = p.cfg == cfg.shrapnel });
+            tank.TakeDamage(new DamageInfo { amount = DamageTo(tank, p.owner, p.cfg, p.power), source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone, explosion = p.cfg == cfg.shrapnel });
             if (p.mark && !tank.IsDead) tank.Visual.Mark(cfg.markDuration);
             if ((p.power || p.mark) && p.owner != null && p.owner != tank) p.owner.Weapon.ConsumeMods(p.power, p.mark);
             EchoSystem.I.Emit(p.pos, EchoRadius(p) * 0.6f, EchoColor(p), 0.8f);
@@ -290,7 +302,7 @@ namespace PulyaDura
             Die(p, false);
         }
 
-        /// <summary>Ящик, белый ящик или бочка: всё, что ломается, но не танк.</summary>
+        /// <summary>Ящик, зелёный ящик или бочка: всё, что ломается, но не танк.</summary>
         void HitBreakable(Projectile p, IDamageable target)
         {
             target.TakeDamage(new DamageInfo { amount = DamageOf(p.owner, p.cfg), source = p.owner, point = p.pos, direction = p.dir, bounces = p.bouncesDone });
@@ -461,7 +473,7 @@ namespace PulyaDura
                         Fx.I.Sparks(t.transform.position + Vector3.up * 0.5f, -d / len, Color.white * 2f, 18, 7f);
                         continue;
                     }
-                    t.TakeDamage(new DamageInfo { amount = mods.power ? 99 : DamageOf(owner, turret), source = owner, point = t.transform.position, direction = d / len, bounces = s });
+                    t.TakeDamage(new DamageInfo { amount = DamageTo(t, owner, turret, mods.power), source = owner, point = t.transform.position, direction = d / len, bounces = s });
                     if (mods.mark && !t.IsDead) t.Visual.Mark(cfg.markDuration);
                     if ((mods.power || mods.mark) && t != owner && !consumed)
                     {

@@ -73,6 +73,7 @@ namespace PulyaDura
         readonly HashSet<int> hintsShown = new();
         bool hurtThisRoom;
         bool lifeBonusPending;
+        bool skipTimeFrame;
         // Очки и счётчики на входе в комнату. R откатывает к ним: иначе убил → R → враги снова на месте → убил
         // ещё раз, и очки копятся бесконечно. Время не откатываем — оно идёт честно
         int roomScore, roomKills, roomRicochetKills, roomPickups, roomBestStreak;
@@ -327,7 +328,14 @@ namespace PulyaDura
             Stats.ricochetKills = roomRicochetKills;
             Stats.pickups = roomPickups;
             Stats.bestStreak = roomBestStreak;
+            // Броня остаётся как была: R — не бесплатная аптечка. Подбитый игрок и «без царапины» не получит
+            int hp = Player != null ? Player.Hp : int.MaxValue;
             LoadRoom(RoomIndex);
+            if (Player != null && hp < Player.MaxHp)
+            {
+                Player.SetHp(hp);
+                hurtThisRoom = true;
+            }
         }
 
         /// <summary>Продолжить с комнаты, где кончились жизни. Такой забег не попадает в таблицу.</summary>
@@ -373,6 +381,7 @@ namespace PulyaDura
         {
             ResetWorld();
             hurtThisRoom = false;
+            skipTimeFrame = true; // загрузка комнаты не входит во время забега
             RoomIndex = index;
             streak = 0;
             roomScore = Stats.score;
@@ -439,7 +448,12 @@ namespace PulyaDura
                     if (kb != null && kb.tabKey.wasPressedThisFrame) SetEndless(!Endless);
                     break;
                 case GameState.Playing:
-                    if (!Paused) Stats.time += Time.deltaTime;
+                    // Время забега — реальное: замедление и стоп-кадры после убийств его не «экономят».
+                    // Не считаются: пауза, переход между комнатами и возрождение после смерти (это другие состояния),
+                    // кадр сразу после загрузки комнаты и всё, что сверх 0,1 с на кадр, — задержки, которые
+                    // зависят от скорости компьютера, а не от игрока
+                    if (skipTimeFrame) skipTimeFrame = false;
+                    else if (!Paused) Stats.time += Mathf.Min(Time.unscaledDeltaTime, 0.1f);
                     if (back || (pad != null && pad.startButton.wasPressedThisFrame)) TogglePause();
                     if (restart)
                     {
@@ -457,7 +471,11 @@ namespace PulyaDura
 #if UNITY_EDITOR || DEVELOPMENT_BUILD
             if (kb != null && State != GameState.Result)
                 for (int i = 0; i < Mathf.Min(8, rooms.Count); i++)
-                    if (kb[Key.F1 + i].wasPressedThisFrame) DebugLoadRoom(i);
+                    if (kb[Key.F1 + i].wasPressedThisFrame)
+                    {
+                        recordRun = false; // пропуск комнат — забег не идёт в таблицу
+                        DebugLoadRoom(i);
+                    }
 #endif
         }
 

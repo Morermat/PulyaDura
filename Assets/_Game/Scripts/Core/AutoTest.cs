@@ -207,10 +207,14 @@ namespace PulyaDura
             yield return Wait(0.5f);
             int scoreBeforeR = gm.Stats.score;
             gm.AddScore(300, null);
+            gm.Player.SetHp(gm.Player.MaxHp - 2);
+            int hpBeforeR = gm.Player.Hp;
             yield return Tap(Key.R);
             yield return Wait(0.3f);
             Check("R перезапускает забег", gm.State == GameState.Playing && gm.RoomIndex == 0 && gm.Lives == GameManager.Cfg.lives);
             Check("R откатывает очки, набранные в комнате", gm.Stats.score == scoreBeforeR, $"{scoreBeforeR} → +300 → R → {gm.Stats.score}");
+            Check("R не лечит: броня сохраняется", gm.Player.Hp == hpBeforeR, $"{hpBeforeR} → R → {gm.Player.Hp}/{gm.Player.MaxHp}");
+            gm.Player.SetHp(gm.Player.MaxHp);
 
             Check("Музыка играет", MusicDirector.I != null && MusicDirector.I.IsPlaying);
             Check("В HUD счётчик врагов комнаты", gm.EnemiesTotal > 0 && gm.EnemiesLeft == gm.EnemiesTotal, $"{gm.EnemiesLeft}/{gm.EnemiesTotal}");
@@ -891,10 +895,23 @@ namespace PulyaDura
             }
             rookie.Brain.enabled = false;
             int score0 = gm.Stats.score;
+            Vector3 dummyPos = target.transform.position; // мишень погибнет — место пригодится для босса
             ProjectileSystem.I.Spawn(p, cannon, target.transform.position + Vector3.left * 2f + up, Vector3.right, 0f, new ShotMods { power = true });
             yield return Wait(0.6f);
             Check("Бонус «Ваншот»: враг погибает с одного попадания", target.IsDead, $"броня {target.Hp}/{target.MaxHp}");
             Check("Очки за убийство", gm.Stats.score > score0, $"{score0} → {gm.Stats.score}");
+
+            // «Ваншот» по боссу: большой урон, но не насмерть (не больше половины брони)
+            var bossCfg = GameManager.Cfg.Enemy('B');
+            var boss = Tank.Spawn(Team.Enemy, GameManager.Cfg.Hull(bossCfg.hullId), GameManager.Cfg.Turret(bossCfg.turretId), bossCfg,
+                dummyPos, Quaternion.identity, gm.LevelRoot);
+            boss.Brain.enabled = false;
+            yield return Wait(0.2f);
+            ProjectileSystem.I.Spawn(p, cannon, boss.transform.position + Vector3.left * 2.5f + up, Vector3.right, 0f, new ShotMods { power = true });
+            yield return Wait(0.6f);
+            Check("Ваншот по боссу: большой урон, но не насмерть", !boss.IsDead && boss.Hp < boss.MaxHp && boss.Hp >= boss.MaxHp / 2, $"броня {boss.Hp}/{boss.MaxHp}");
+            if (boss != null) Destroy(boss.gameObject);
+            yield return null;
 
             // Метка: попавший враг подсвечен. Цель — турель (4 брони), чтобы пережила попадание
             var tCfg = GameManager.Cfg.Enemy('t');
@@ -923,7 +940,7 @@ namespace PulyaDura
             Check("Щит гасит одно попадание", hadShield && p.Hp == hpShield && p.ShieldCharges == 0, $"щит={hadShield}, броня {hpShield} → {p.Hp}");
             p.Invulnerable = true;
 
-            // Белый ящик в комнате 2 роняет бонус
+            // Зелёный ящик в комнате 2 роняет бонус
             gm.DebugLoadRoom(1);
             yield return Wait(0.5f);
             var box = FindAnyObjectByType<SupplyBox>();
@@ -931,7 +948,7 @@ namespace PulyaDura
             for (int i = 0; i < 4 && box != null; i++)
                 box.TakeDamage(new DamageInfo { amount = 1, source = gm.Player, point = box.transform.position, direction = Vector3.up });
             yield return Wait(0.3f);
-            Check("Белый ящик роняет бонус", hasBox && Pickup.All.Count == 1, $"ящик={hasBox}, бонусов {Pickup.All.Count}");
+            Check("Зелёный ящик роняет бонус", hasBox && Pickup.All.Count == 1, $"ящик={hasBox}, бонусов {Pickup.All.Count}");
             Shot("19_pickup");
             yield return Wait(0.1f);
 

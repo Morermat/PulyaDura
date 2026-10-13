@@ -44,6 +44,13 @@ namespace PulyaDura
             Visual.SetHealth((float)Hp / MaxHp);
         }
 
+        /// <summary>Задать броню напрямую (перезапуск комнаты сохраняет броню игрока).</summary>
+        public void SetHp(int hp)
+        {
+            Hp = Mathf.Clamp(hp, 1, MaxHp);
+            Visual.SetHealth((float)Hp / MaxHp);
+        }
+
         public void TeleportTo(Vector3 pos)
         {
             LastTeleport = Time.time;
