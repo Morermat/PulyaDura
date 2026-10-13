@@ -110,6 +110,8 @@ namespace PulyaDura
             // Автотест пишет забеги в отдельную таблицу, чтобы не засорять настоящую
             Leaderboard.Key = "leaderboard_autotest";
             Leaderboard.Clear();
+            yield return new WaitUntil(() => gm.Ready);
+            Note($"прогрев видеокарты при запуске: {gm.WarmupSeconds:F2} с");
             if (gm.Endless) gm.SetEndless(false);
             yield return Wait(1f);
 

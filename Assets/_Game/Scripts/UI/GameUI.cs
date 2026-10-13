@@ -65,7 +65,7 @@ namespace PulyaDura
         readonly List<(Image icon, Text count)> buffSlots = new();
 
         // слово во весь экран (распев «ПУЛЯ. ДУРА.»)
-        RectTransform slamRoot;
+        RectTransform slamRoot, loadingRoot;
         Text slamWord, slamSub;
         Image slamFlash, slamDim;
         float slamTime;
@@ -98,7 +98,14 @@ namespace PulyaDura
             BuildResult();
             slamRoot = UiKit.Stretch("Slam", canvas);
             BuildSlam();
+            // Экран загрузки поверх всего: под ним при запуске идёт прогрев видеокарты
+            loadingRoot = UiKit.Stretch("Loading", canvas);
+            UiKit.Fill(loadingRoot, Color.black);
+            UiKit.Text("Label", loadingRoot, BC, BC, new Vector2(0f, 80f), new Vector2(600f, 40f), "Загрузка", 24, UiKit.Muted, TextAnchor.MiddleCenter, Weight.Mono);
+            loadingRoot.gameObject.SetActive(false);
         }
+
+        public void ShowLoading(bool on) => loadingRoot.gameObject.SetActive(on);
 
         // ---------- Слово во весь экран ----------
 

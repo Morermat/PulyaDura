@@ -32,7 +32,11 @@ namespace PulyaDura
 
         public GameState State { get; private set; }
         public bool Paused => TimeController.I.Paused;
-        public bool InputEnabled => State == GameState.Playing && !Paused;
+        public bool InputEnabled => Ready && State == GameState.Playing && !Paused;
+        /// <summary>Прогрев при запуске закончен, игра в гараже (автотест ждёт этого).</summary>
+        public bool Ready { get; private set; }
+        /// <summary>Сколько секунд занял прогрев (для отчёта автотеста).</summary>
+        public float WarmupSeconds { get; private set; }
         public Tank Player { get; private set; }
         public Transform LevelRoot => level.Root;
         public int RoomIndex { get; private set; }
@@ -69,6 +73,7 @@ namespace PulyaDura
         readonly HashSet<int> hintsShown = new();
         bool hurtThisRoom;
         bool lifeBonusPending;
+        int scaledForHeight;
 
         void Awake()
         {
@@ -109,7 +114,70 @@ namespace PulyaDura
             feedback.Init(config, ui);
         }
 
-        void Start() => EnterGarage();
+        IEnumerator Start()
+        {
+            yield return Warmup();
+            EnterGarage();
+            Ready = true;
+        }
+
+        /// <summary>
+        /// Прогрев видеокарты под экраном загрузки. Шейдер компилируется под видеокарту при первом показе
+        /// (на Mac с Metal — особенно долго): без прогрева первая комната «грузится» рывками, а стартовая
+        /// вспышка эха всё это время стоит ярко-голубой. Поэтому один раз при запуске, без звука, проходим
+        /// гараж и все комнаты и показываем всё, что бывает в бою: выстрелы всех пушек, рельсу, эхо, взрыв,
+        /// искры, стенку и зеркало. Дальше всё рисуется из готового.
+        /// </summary>
+        IEnumerator Warmup()
+        {
+            float start = Time.realtimeSinceStartup;
+            ui.ShowLoading(true);
+            float volume = AudioListener.volume;
+            AudioListener.volume = 0f;
+            bool endless = Endless;
+            Endless = false;
+
+            EnterGarage();
+            yield return null;
+            for (int i = 0; i < rooms.Count; i++)
+            {
+                BeginRun(i, false);
+                var p = Player;
+                p.Invulnerable = true;
+                Vector3 o = p.ShotOrigin, f = p.transform.forward;
+                foreach (var t in config.turrets)
+                {
+                    if (t.mode == FireMode.Rail) ProjectileSystem.I.FireRail(p, t, o, f);
+                    else ProjectileSystem.I.Spawn(p, t, o, f, 0f);
+                }
+                EchoSystem.I.Emit(o, 12f, config.echoColor);
+                Fx.I.Explosion(o + f * 2f, config.echoColor);
+                p.Visual.SetMirror(true);
+                if (i == 0) TempWall.Spawn(o + f * 2.5f, f, 1f);
+                yield return null;
+                yield return null;
+            }
+
+            // Обломки живут без родителя — убираем, чтобы не долетали до гаража
+            foreach (var d in FindObjectsByType<Debris>()) Destroy(d.gameObject);
+            Endless = endless;
+            AudioListener.volume = volume;
+            ui.ShowLoading(false);
+            WarmupSeconds = Time.realtimeSinceStartup - start;
+        }
+
+        /// <summary>
+        /// 3D рисуем не выше 1440 строк (на Mac — 1080): на Retina-экране полное разрешение — это в 3–4 раза
+        /// больше пикселей при той же картинке. Интерфейс остаётся в родном разрешении и не мылится.
+        /// </summary>
+        void UpdateRenderScale()
+        {
+            if (Application.isEditor || Screen.height == scaledForHeight) return;
+            scaledForHeight = Screen.height;
+            if (GraphicsSettings.currentRenderPipeline is not UniversalRenderPipelineAsset urp) return;
+            float maxHeight = Application.platform == RuntimePlatform.OSXPlayer ? 1080f : 1440f;
+            urp.renderScale = Mathf.Clamp(maxHeight / Mathf.Max(1, Screen.height), 0.5f, 1f);
+        }
 
         void OnEnable()
         {
@@ -341,6 +409,8 @@ namespace PulyaDura
 
         void Update()
         {
+            UpdateRenderScale();
+            if (!Ready) return;
             var kb = Keyboard.current;
             var pad = Gamepad.current;
             bool confirm = (kb != null && (kb.enterKey.wasPressedThisFrame || kb.numpadEnterKey.wasPressedThisFrame)) || (pad != null && pad.startButton.wasPressedThisFrame);
